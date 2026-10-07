@@ -11,3 +11,8 @@
 /node-modules
 /.idea
 /.env
+# Node dependencies (root and views/)
+node_modules/
+# Angular build cache and output
+views/.angular/
+views/dist/

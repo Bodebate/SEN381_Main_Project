@@ -1,0 +1,55 @@
+<a class="skip-link" href="#main">Skip to content</a>
+<header class="shell-header">
+  <a routerLink="/" class="brand"><span class="logo" aria-hidden="true"></span>CivicConnect</a>
+  @if (roleChip()) {
+    <span class="chip">{{ roleChip() }}</span>
+  }
+  @if (user()?.role === 'REQUESTER') {
+    <nav class="top-nav" aria-label="Main">
+      <a routerLink="/requests" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">My requests</a>
+      <a routerLink="/requests/new" routerLinkActive="active">New request</a>
+    </nav>
+  }
+  <div class="push">
+    <button type="button" class="btn pill" [cdkMenuTriggerFor]="accountMenu" aria-label="Account menu">
+      {{ initials() }} <span aria-hidden="true">▾</span>
+    </button>
+  </div>
+</header>
+
+<ng-template #accountMenu>
+  <div class="menu" cdkMenu>
+    <a class="menu-item" cdkMenuItem routerLink="/account">Account settings</a>
+    <button type="button" class="menu-item" cdkMenuItem (cdkMenuItemTriggered)="signOut()">Sign out</button>
+  </div>
+</ng-template>
+
+@if (isStaff()) {
+  <div class="with-sidebar">
+    <nav class="sidebar" aria-label="Sections">
+      @if (isManager()) {
+        <span class="side-heading">Management</span>
+        <a routerLink="/manage/dashboard" routerLinkActive="active">Dashboard</a>
+        <a routerLink="/manage/track" routerLinkActive="active">Track, group &amp; export</a>
+        <a routerLink="/manage/approvals" routerLinkActive="active">
+          Account approvals
+          @if (pendingApprovals() > 0) {
+            <span class="count">{{ pendingApprovals() }}</span>
+          }
+        </a>
+        <span class="side-heading">Requests</span>
+      }
+      <a routerLink="/staff/queue" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">Request queue</a>
+      <a routerLink="/staff/queue" [queryParams]="{ view: 'mine' }" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">Assigned to me</a>
+      <a routerLink="/staff/queue" [queryParams]="{ view: 'triage' }" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">Triage · uncategorised</a>
+      <a routerLink="/staff/queue" [queryParams]="{ view: 'overdue' }" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">Overdue</a>
+    </nav>
+    <main id="main" class="content">
+      <router-outlet />
+    </main>
+  </div>
+} @else {
+  <main id="main">
+    <router-outlet />
+  </main>
+}
