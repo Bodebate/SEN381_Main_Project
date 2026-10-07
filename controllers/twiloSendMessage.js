@@ -1,8 +1,8 @@
 class TwiloSendMessage {
     twilio = require("twilio");
 
-    accountSid = "AC09a394a580493f7f551496b4c9acf400";
-    authToken = "616af50a77094821950d992337117dc3";
+    accountSid = "";
+    authToken = "";
     client = twilio(accountSid, authToken);
 
 
