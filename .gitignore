@@ -16,3 +16,4 @@ node_modules/
 # Angular build cache and output
 views/.angular/
 views/dist/
+/node_modules/
