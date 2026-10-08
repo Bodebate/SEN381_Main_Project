@@ -1,0 +1,213 @@
+<div class="page">
+  <a routerLink="/staff/queue">‹ Back to queue</a>
+
+  @if (loadError()) {
+    <div class="alert error" role="alert">{{ loadError() }}</div>
+  } @else if (!request()) {
+    <p class="muted" role="status">Loading request…</p>
+  } @else {
+    @let r = request()!;
+    <div class="row-sm">
+      <span class="mono strong">{{ r.trackingId }}</span>
+      <app-status-chip [status]="r.status" />
+      @if (r.priority) {
+        <span class="chip">Priority: {{ priorityLabel[r.priority] }}</span>
+      }
+      @if (overdue()) {
+        <span class="badge-overdue">OVERDUE · due {{ r.dueAt | date: 'd MMM' }}</span>
+      }
+    </div>
+    <h1>{{ r.title }}</h1>
+
+    @if (notice()) {
+      <div class="alert success" role="status">{{ notice() }}</div>
+    }
+    @if (actionError()) {
+      <div class="alert error" role="alert">{{ actionError() }}</div>
+    }
+
+    <!-- Triage: only while Submitted. Category is set by staff, never the requester. -->
+    @if (r.status === 'SUBMITTED') {
+      <section class="box strong stack" aria-labelledby="triage-h">
+        <span class="eyebrow">Triage</span>
+        <h2 id="triage-h">Categorise and assign</h2>
+        <p class="muted small">The category sets the department and security level. Saving moves the request from Submitted to Assigned and notifies the requester.</p>
+        <div class="grid-auto">
+          <div class="field">
+            <label class="label" for="t-cat">Category *</label>
+            <select class="input" id="t-cat" [ngModel]="triage.categoryId" (ngModelChange)="onTriageCategory($event)">
+              <option value="" disabled>Select one category…</option>
+              @for (c of lookup.categories(); track c.id) {
+                <option [value]="c.id">{{ c.name }} ({{ lookup.getDepartmentName(c.departmentId) }})</option>
+              }
+            </select>
+          </div>
+          <div class="field">
+            <label class="label" for="t-owner">Assign to *</label>
+            <select class="input" id="t-owner" [(ngModel)]="triage.assigneeId" [disabled]="!triage.categoryId">
+              <option value="" disabled>{{ triage.categoryId ? 'Select a team member…' : 'Choose a category first' }}</option>
+              @for (s of staffOptions(); track s.id) {
+                <option [value]="s.id">{{ s.firstName }} {{ s.lastName }} (clearance {{ s.clearance }})</option>
+              }
+            </select>
+          </div>
+          <div class="field">
+            <label class="label" for="t-due">Due date *</label>
+            <input class="input" id="t-due" type="date" [(ngModel)]="triage.dueDate" />
+            <span class="hint">Suggested from the category; you can change it.</span>
+          </div>
+          <div class="field">
+            <label class="label" for="t-pri">Priority *</label>
+            <select class="input" id="t-pri" [(ngModel)]="triage.priority">
+              <option value="LOW">Low</option>
+              <option value="MEDIUM">Medium</option>
+              <option value="HIGH">High</option>
+            </select>
+          </div>
+        </div>
+        <div class="field">
+          <label class="label" for="t-comment">Comment * <span class="muted">(sent to the requester)</span></label>
+          <input class="input" id="t-comment" [(ngModel)]="triage.comment" placeholder="e.g. Sent to the sanitation team" />
+        </div>
+        <div class="row"><button type="button" class="btn primary push" [disabled]="busy()" (click)="submitTriage()">Categorise and assign</button></div>
+      </section>
+    } @else {
+      <!-- Ownership (FR-STF-004) -->
+      <section class="box soft tight row" aria-label="Ownership">
+        <strong>Owner:</strong>
+        <span>{{ lookup.getUserName(r.assignedTo) }}</span>
+        <span class="small muted">assigned by {{ lookup.getUserName(r.assignedBy) }} · {{ r.assignedAt | date: 'd MMM, HH:mm' }}</span>
+        @if (r.status !== 'CLOSED') {
+          <div class="row-sm push">
+            <label class="small muted" for="reassign">Reassign to</label>
+            <select class="input" id="reassign" [(ngModel)]="reassignTo" style="width: 220px">
+              @for (s of staffOptions(); track s.id) {
+                <option [value]="s.id">{{ s.firstName }} {{ s.lastName }}</option>
+              }
+            </select>
+            <button type="button" class="btn small" [disabled]="busy()" (click)="submitReassign()">Assign</button>
+          </div>
+        }
+      </section>
+
+      <!-- Due date: set by staff only (FR-MNG-002) -->
+      <section class="box soft tight stack-sm" aria-label="Due date">
+        <div class="row">
+          <strong>Due date:</strong>
+          <span>{{ r.dueAt | date: 'd MMM y' }}</span>
+          <span class="small muted">set by {{ lookup.getUserName(r.dueSetBy) }}</span>
+          @if (r.status !== 'CLOSED' && r.status !== 'RESOLVED') {
+            <div class="row-sm push">
+              <label class="sr-only" for="due-date">New due date</label>
+              <input class="input" id="due-date" type="date" [(ngModel)]="due.date" style="width: 170px" />
+              <label class="sr-only" for="due-reason">Reason</label>
+              <input class="input" id="due-reason" [(ngModel)]="due.reason" placeholder="Reason for change" style="width: 200px" />
+              <button type="button" class="btn small" [disabled]="busy()" (click)="submitDueDate()">Update due date</button>
+            </div>
+          }
+        </div>
+        <span class="small muted">Staff only. Changes need a reason and are logged in the activity log.</span>
+      </section>
+    }
+
+    <div class="split">
+      <section class="main stack">
+        <dl class="box kv">
+          <dt>Category</dt>
+          <dd>
+            @if (r.categoryId) {
+              {{ lookup.getCategoryName(r.categoryId) }}
+              <span class="small muted">· set at triage by {{ lookup.getUserName(r.categorisedBy) }}</span>
+              @if (r.status !== 'CLOSED') {
+                <button type="button" class="link-btn small" (click)="categoryChange.open = !categoryChange.open">change</button>
+              }
+            } @else {
+              <span class="muted">Uncategorised — triage above</span>
+            }
+          </dd>
+          <dt>Department</dt><dd>{{ lookup.getDepartmentName(r.departmentId) }}</dd>
+          <dt>Security level</dt><dd>{{ r.securityLevel ?? '—' }}</dd>
+          <dt>Address</dt><dd>{{ r.address }}</dd>
+          <dt>Requesters ({{ r.requesterIds.length }})</dt><dd>{{ requesterNames(r) }}</dd>
+          <dt>Contact</dt><dd>{{ r.contact.email || '—' }} · {{ r.contact.phone || '—' }}</dd>
+          <dt>Group</dt><dd>{{ groupTitle() ?? '—' }}</dd>
+          <dt>Submitted</dt><dd>{{ r.createdAt | date: 'd MMM y, HH:mm' }}</dd>
+        </dl>
+
+        @if (categoryChange.open) {
+          <div class="box stack-sm">
+            <strong>Change category</strong>
+            <div class="row-sm">
+              <label class="sr-only" for="cc-cat">Category</label>
+              <select class="input grow" id="cc-cat" [(ngModel)]="categoryChange.categoryId">
+                @for (c of lookup.categories(); track c.id) {
+                  <option [value]="c.id">{{ c.name }}</option>
+                }
+              </select>
+              <label class="sr-only" for="cc-reason">Reason</label>
+              <input class="input grow" id="cc-reason" [(ngModel)]="categoryChange.reason" placeholder="Reason for change" />
+              <button type="button" class="btn small" [disabled]="busy()" (click)="submitCategory()">Save</button>
+            </div>
+            <span class="hint">Changing the category also moves the request to that category's department and security level.</span>
+          </div>
+        }
+
+        <div class="box stack-sm">
+          <strong>Description</strong>
+          <p class="muted">{{ r.details }}</p>
+        </div>
+
+        <div class="stack-sm">
+          <h2>Activity log</h2>
+          <app-activity-log [request]="r" />
+          <label class="label" for="note">Add note (no status change)</label>
+          <textarea class="input" id="note" rows="2" [(ngModel)]="note.details"></textarea>
+          @if (r.groupId) {
+            <label class="check small"><input type="checkbox" [(ngModel)]="note.applyToGroup" /> Also add this note to all requests in {{ groupTitle() }}</label>
+          }
+          <div class="row"><button type="button" class="btn push" [disabled]="busy()" (click)="submitNote()">Save note</button></div>
+        </div>
+      </section>
+
+      <!-- Status change (FR-STF-005/006/007) -->
+      <aside class="aside box strong stack" aria-labelledby="status-h">
+        <h2 id="status-h">Change status</h2>
+        @if (r.status === 'SUBMITTED') {
+          <p class="muted small">Triage this request first. Categorising and assigning moves it to Assigned.</p>
+        } @else if (r.status === 'CLOSED') {
+          <p class="muted small">This request is closed. No further status changes.</p>
+        } @else {
+          <p class="muted small">Current: <strong>{{ statusLabel[r.status] }}</strong>. Only the next step is offered.</p>
+          <ol class="stack-sm step-list" aria-label="Lifecycle">
+            @for (b of statusButtons(); track b.status) {
+              <li class="btn" [class.primary]="b.isNext && nextAllowed()" [class.disabled]="!b.isNext || !nextAllowed()" [attr.aria-current]="b.isCurrent ? 'step' : null">
+                {{ b.label }}{{ b.isNext ? ' (next)' : b.isCurrent ? ' (current)' : '' }}
+              </li>
+            }
+          </ol>
+          @if (nextStatus() && !nextAllowed()) {
+            <p class="small muted">Only authorised roles can mark a request {{ statusLabel[nextStatus()!] }}.</p>
+          } @else if (nextStatus()) {
+            @if (nextStatus() === 'RESOLVED') {
+              <div class="field">
+                <label class="label" for="outcome">Outcome *</label>
+                <select class="input" id="outcome" [(ngModel)]="statusForm.outcome">
+                  @for (o of outcomes; track o.value) {
+                    <option [value]="o.value">{{ o.label }}</option>
+                  }
+                </select>
+              </div>
+            }
+            <div class="field">
+              <label class="label" for="s-comment">Comment / resolution details *</label>
+              <textarea class="input" id="s-comment" rows="4" [(ngModel)]="statusForm.comment" placeholder="Required: what was done?"></textarea>
+            </div>
+            <label class="check small"><input type="checkbox" [(ngModel)]="statusForm.notify" /> Notify requester(s) with this comment</label>
+            <button type="button" class="btn primary" [disabled]="busy()" (click)="submitStatus()">Move to {{ statusLabel[nextStatus()!] }}</button>
+            <span class="small muted">Logged with your user ID and the time.</span>
+          }
+        }
+      </aside>
+    </div>
+  }
+</div>

@@ -1,6 +1,6 @@
 # Default ignored files
 /shelf/
-/workspace.xml
+/.idea/workspace.xml
 # Editor-based HTTP Client requests
 /httpRequests/
 # Ignored default folder with query files
@@ -8,3 +8,12 @@
 # Datasource local storage ignored files
 /dataSources/
 /dataSources.local.xml
+/node-modules
+/.idea
+/.env
+# Node dependencies (root and views/)
+node_modules/
+# Angular build cache and output
+views/.angular/
+views/dist/
+/node_modules/

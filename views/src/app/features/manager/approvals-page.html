@@ -1,0 +1,109 @@
+<div class="page">
+  <div class="row">
+    <h1>Account approvals</h1>
+    <span class="muted small push">New accounts have no role and clearance 0 until approved here</span>
+  </div>
+
+  <div class="tabs" role="tablist" aria-label="Approval status">
+    <button type="button" role="tab" class="btn" [attr.aria-selected]="tab() === 'PENDING'" (click)="setTab('PENDING')">Pending ({{ counts().PENDING }})</button>
+    <button type="button" role="tab" class="btn" [attr.aria-selected]="tab() === 'APPROVED'" (click)="setTab('APPROVED')">Approved ({{ counts().APPROVED }})</button>
+    <button type="button" role="tab" class="btn" [attr.aria-selected]="tab() === 'DECLINED'" (click)="setTab('DECLINED')">Declined ({{ counts().DECLINED }})</button>
+  </div>
+
+  @if (notice()) {
+    <div class="alert success" role="status">{{ notice() }}</div>
+  }
+
+  @if (listed().length === 0) {
+    <app-empty-state [title]="tab() === 'PENDING' ? 'No accounts are waiting for approval.' : 'No accounts here yet.'" />
+  } @else {
+    <div class="split">
+      <div class="main box flush scroll-x">
+        <table class="data">
+          <caption class="sr-only">Accounts</caption>
+          <thead><tr><th scope="col"><span class="sr-only">Select</span></th><th scope="col">Name</th><th scope="col">Username</th><th scope="col">Updates by</th><th scope="col">Registered</th><th scope="col">Role</th><th scope="col">Clearance</th></tr></thead>
+          <tbody>
+            @for (u of listed(); track u.id) {
+              <tr [class.selected]="u.id === selectedId()">
+                <td><input type="radio" name="selected-account" [checked]="u.id === selectedId()" (change)="select(u)" [attr.aria-label]="'Select ' + u.firstName + ' ' + u.lastName" /></td>
+                <td>{{ u.firstName }} {{ u.lastName }}</td>
+                <td class="mono">{{ u.username }}</td>
+                <td>{{ u.notifyVia === 'SMS' ? 'SMS' : 'Email' }}</td>
+                <td>{{ u.createdAt | date: 'd MMM, HH:mm' }}</td>
+                <td [class.muted]="!u.role">{{ u.role ? roleLabel[u.role] : 'None' }}</td>
+                <td class="mono">{{ u.clearance }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      @if (selected(); as u) {
+        <aside class="aside box strong stack" aria-labelledby="access-h">
+          <h2 id="access-h">Set access for {{ u.firstName }} {{ u.lastName }}</h2>
+          <dl class="box soft tight kv small">
+            <dt>Email</dt><dd>{{ u.email || '—' }}</dd>
+            <dt>Mobile</dt><dd>{{ u.phone ? '••• ' + u.phone.slice(-4) : '—' }}</dd>
+            <dt>Registered</dt><dd>{{ u.createdAt | date: 'd MMM y, HH:mm' }}</dd>
+            @if (u.decisionNote) {
+              <dt>Last note</dt><dd>{{ u.decisionNote }}</dd>
+            }
+          </dl>
+          @if (error()) {
+            <div class="alert error" role="alert">{{ error() }}</div>
+          }
+          <div class="field">
+            <label class="label" for="role">Role *</label>
+            <select class="input" id="role" [(ngModel)]="form.role">
+              <option value="" disabled>Select a role…</option>
+              @for (r of roles; track r) {
+                <option [value]="r" [disabled]="!canGrant(r)">{{ roleLabel[r] }}{{ canGrant(r) ? '' : ' (admin only)' }}</option>
+              }
+            </select>
+          </div>
+          <div class="field">
+            <label class="label" for="clearance">Security clearance *</label>
+            <select class="input" id="clearance" [(ngModel)]="form.clearance">
+              @for (c of clearances; track c) {
+                <option [ngValue]="c">{{ c }}{{ c === 0 ? ' (default)' : '' }}</option>
+              }
+            </select>
+            <span class="hint">Staff only see requests with a security level at or below their clearance.</span>
+          </div>
+          @if (form.role === 'STAFF' || form.role === 'MANAGER' || form.role === 'ADMIN') {
+            <div class="field">
+              <label class="label" for="dept">Department {{ form.role === 'STAFF' ? '*' : '(optional for managers)' }}</label>
+              <select class="input" id="dept" [ngModel]="form.departmentId" (ngModelChange)="onDepartment($event)">
+                <option value="">Select a department…</option>
+                @for (d of lookup.departments(); track d.id) {
+                  <option [value]="d.id">{{ d.name }}</option>
+                }
+              </select>
+            </div>
+          }
+          @if (form.role === 'STAFF' && form.departmentId) {
+            <fieldset class="stack-sm">
+              <legend class="label">Work categories</legend>
+              @for (c of categoriesForDepartment(); track c.id) {
+                <label class="check"><input type="checkbox" [checked]="form.workCategoryIds.includes(c.id)" (change)="toggleCategory(c.id, $any($event.target).checked)" /> {{ c.name }}</label>
+              }
+            </fieldset>
+          }
+          <div class="field">
+            <label class="label" for="note">Note {{ u.approval === 'PENDING' ? '(required when declining)' : '' }}</label>
+            <textarea class="input" id="note" rows="2" [(ngModel)]="form.note"></textarea>
+          </div>
+          <div class="row">
+            @if (u.approval !== 'DECLINED') {
+              <button type="button" class="btn danger" [disabled]="busy()" (click)="decide('DECLINE')">{{ u.approval === 'APPROVED' ? 'Deactivate' : 'Decline' }}</button>
+            }
+            <button type="button" class="btn primary push" [disabled]="busy()" (click)="decide('APPROVE')">
+              {{ u.approval === 'APPROVED' ? 'Save changes' : u.approval === 'DECLINED' ? 'Approve instead' : 'Approve and activate' }}
+            </button>
+          </div>
+          <span class="small muted">Saved with who approved it and when. Managers cannot approve their own account; only an admin can grant Manager or Admin. [confirm]</span>
+        </aside>
+      }
+    </div>
+  }
+</div>
