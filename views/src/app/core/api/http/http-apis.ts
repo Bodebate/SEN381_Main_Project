@@ -45,7 +45,7 @@ export class HttpAuthApi extends AuthApi {
   override postResendCode(userId: string): Observable<{ sentTo: string }> {
     return this.http.post<{ sentTo: string }>(`${base}/auth/resend-code`, { userId });
   }
-  override getSessionUser(_token: string): Observable<User> {
+  override getSessionUser(): Observable<User> {
     // The token is attached by authInterceptor.
     return this.http.get<User>(`${base}/auth/me`);
   }

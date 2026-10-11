@@ -17,3 +17,6 @@ node_modules/
 views/.angular/
 views/dist/
 /node_modules/
+views/playwright-report/
+views/test-results/
+.DS_Store

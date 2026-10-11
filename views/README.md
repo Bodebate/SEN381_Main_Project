@@ -1,6 +1,6 @@
 # CivicConnect front end (Angular 22)
 
-Clickable front end for the CivicConnect request tracker, built from the wireframes (screens 01–12).
+Clickable front end for the CivicConnect request tracker, built from agreed-upon wireframes.
 It runs entirely in the browser on **demo data** until the Express API is ready.
 
 ## Run it
@@ -12,7 +12,15 @@ npm run web          # = npm --prefix views start  → http://localhost:4200
 npm run web:build    # = npm --prefix views run build → views/dist/
 ```
 
-Or from `views/`: `npm install` (first time), `npm start`, `npm run build`, `npm test`.
+Or from `views/`: `npm install` (first time), then:
+
+| Command | What it does |
+| --- | --- |
+| `npm start` | Dev server on http://localhost:4200 |
+| `npm run build` | Production build into `views/dist/` |
+| `npm run lint` | ESLint static analysis (angular-eslint) |
+| `npm test` | Unit tests (Vitest); add `-- --watch=false` for a single run |
+| `npm run e2e` | Browser (E2E) tests with Playwright; starts the dev server itself |
 
 ### Demo accounts (password `demo` for all)
 
@@ -28,6 +36,35 @@ Or from `views/`: `npm install` (first time), `npm start`, `npm run build`, `npm
 | `declined` | Application declined → sign-in error |
 
 Registering a new account works too; any 6-digit code verifies it. Demo data resets on page refresh.
+
+## Testing
+
+All tests follow the **AAA pattern** (Arrange, Act, Assert), with each step marked by a comment.
+
+| Level | Tool | Where | What it covers |
+| --- | --- | --- | --- |
+| Static analysis | ESLint (angular-eslint) | `eslint.config.js` | Code quality and Angular template rules |
+| Unit | Vitest via `ng test` | `src/**/*.spec.ts` | Status transitions, overdue rule, visibility, resolve/close and approval rules, route guards |
+| E2E | Playwright | `e2e/*.spec.ts` | E2E-01 submit and track a request (FR-REQ-001, FR-REQ-002); E2E-02 requester blocked from staff pages; E2E-03 signed-out visitor sent to sign in (NFR-SEC-001) |
+
+First-time E2E setup: `npx playwright install chromium`. The E2E tests run against `ng serve` and the
+built-in demo data, so they need no back end. Their TypeScript settings are in `tsconfig.e2e.json`
+(Node types for the Playwright files only).
+
+## CI pipeline
+
+`.github/workflows/ci.yml` runs on every pull request and push to
+`implementation/baseline`, `development` and `main`:
+
+| Check | Steps |
+| --- | --- |
+| Front end - lint, unit tests, build | `npm ci`, ESLint, Vitest, production build |
+| Front end - E2E tests | Playwright against `ng serve`; the HTML report is kept as a run artifact |
+| Front end - dependency audit | `npm audit --omit=dev --audit-level=high` |
+
+GitHub's CodeQL scanning and Dependabot (`.github/dependabot.yml`) add code and dependency security checks.
+A failing check blocks the merge once the branch ruleset requires these checks. Back-end, database and
+notification tests will be added to the same workflow when that code exists.
 
 ## How it fits together
 
@@ -52,6 +89,7 @@ src/app/
     manager/       dashboard, track/group/export, account approvals
     account/       account settings (all roles)
     errors/        403 access denied, 404 not found
+e2e/               Playwright E2E tests (helpers.ts + one spec file per journey)
 ```
 
 ### Swapping in the real backend
@@ -63,23 +101,10 @@ src/app/
 The real API **must enforce** the same rules server-side (NFR-SEC-001). The UI guards and
 `core/domain/request-rules.ts` only shape what the user sees.
 
-### Decisions built in (from the team sign-off and wireframe comments)
-
-- 2FA code only at registration; normal sign-in is username + password.
-- New accounts: role `null`, clearance 0, inactive until a manager approves them.
-- Notification channel (Email/SMS) lives on the account, not on each request.
-- Requesters don't choose a category. Staff set category, owner, due date and priority at triage,
-  which moves Submitted → Assigned.
-- Due dates are set by staff only. Overdue = past due and not Resolved/Closed.
-- Status follows FR-STF-005 exactly; every change needs a comment.
-- Attachments are deferred.
-
-Items marked `[confirm]` in the code are open team decisions (who may resolve/close, who may grant
-Manager/Admin, uncategorised requests visible to all staff, POPI masking in exports).
-
 ## Notes
 
 - Styling is plain SCSS (`src/styles.scss`) matching the wireframes, plus Angular CDK for the account menu.
 - Fonts load from Google Fonts. Production builds inline them, so `ng build` needs internet access.
 - Live status on the requester page polls every 15 s; replace with WebSocket/SSE later if needed.
-- Tests: `npm test` (Vitest) covers status rules, visibility rules, approvals and route guards.
+- `environment.prod.ts` is not used yet: `angular.json` has no production `fileReplacements`. Both
+  environment files use demo data today; add the replacement when switching to the real API.
