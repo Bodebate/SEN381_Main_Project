@@ -1,0 +1,27 @@
+{
+  "name": "sen381_main_project",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "web": "npm --prefix views start",
+    "web:build": "npm --prefix views run build"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Bodebate/SEN381_Main_Project.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/Bodebate/SEN381_Main_Project/issues"
+  },
+  "homepage": "https://github.com/Bodebate/SEN381_Main_Project#readme",
+  "dependencies": {
+    "express": "^5.2.1",
+    "twilio": "^6.1.2"
+  }
+}
