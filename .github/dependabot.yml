@@ -2,12 +2,12 @@ version: 2
 updates:
   - package-ecosystem: npm
     directory: /views
-    target-branch: implementation/baseline
+    target-branch: implemenation/baseline
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
   - package-ecosystem: github-actions
     directory: /
-    target-branch: implementation/baseline
+    target-branch: implemenation/baseline
     schedule:
       interval: monthly
