@@ -15,6 +15,8 @@ const constRequestSchema = new Schema({
                 },
                 security_level: {bsonType: "int", minimum: 0, maximum: 5},
                 request_category: {bsonType: "array", items: {bsonType: "string"}},
+                priority:{bsonType: "int",
+                Due:{bsonType: "date"}},
                 asigned_to: {bsonType:"objectId"},
                 address: {bsonType: "string"},
                 resolved:{bsonType:"bool"} ,
