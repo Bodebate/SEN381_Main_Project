@@ -12,3 +12,12 @@
 /.idea
 /.env
 /controllers/twillioAccount.txt
+# Node dependencies (root and views/)
+node_modules/
+# Angular build cache and output
+views/.angular/
+views/dist/
+/node_modules/
+views/playwright-report/
+views/test-results/
+.DS_Store
