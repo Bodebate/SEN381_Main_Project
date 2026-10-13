@@ -1,9 +1,9 @@
 // Encryption keys configuration (Replace with real values pulled from a secure secrets vault)
-const bcrypt = require('bcrypt');
+require('dotenv').config();
 const crypto = require('crypto');
 
-const ENCRYPTION_KEY = Buffer.from("a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6", "utf-8"); // Must be exactly 32 bytes
-const FIXED_IV = Buffer.from("static_iv_bytes", "utf-8"); // Must be exactly 12 bytes to preserve query consistency
+const ENCRYPTION_KEY = Buffer.from(process.env.ENCRYPTION_KEY, "hex");
+const FIXED_IV = Buffer.from(process.env.FIXED_IV, "hex")
 
 function encryptText(text) {
     if (!text) return text;

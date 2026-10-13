@@ -1,23 +1,42 @@
-const constMongoose = require('mongoose');
-const { Schema } = constMongoose;
+const mongoose = require('mongoose');
+const { Schema } = mongoose;
 
-const constUserSchema = new Schema(
-    {
-        bsonType: "object",
-        required: ["username", "password_hash", "first_name", "last_name", "clearance"],
-        properties: {
-            username: { bsonType: "string" },
-            password_hash: { bsonType: "string" },
-            first_name: { bsonType: "string" },
-            last_name: { bsonType: "string" },
-            clearance: { bsonType: "int", minimum: 0, maximum: 5 },
-            work_categories: { bsonType: "array", items: { bsonType: "string" } },
-            email: { bsonType: ["string", "null"], pattern: "^.+@.+\\..+$" },
-            phone: { bsonType: ["string", "null"], pattern: "^[0-9]{10}$" },
-            whatsapp: { bsonType: ["string", "null"], pattern: "^[0-9]{10}$" }
+const userSchema = new Schema({
+    username: { type: String, required: true, unique: true, index: true },
+    password_hash: { type: String, required: true },
+    first_name: { type: String, required: true },
+    last_name: { type: String, required: true },
+    clearance: { type: Number, required: true, min: 0, max: 5, default: 0 },
+    work_categories: [{ type: String }],
+    email: { type: String, match: /^.+@.+\..+$/, default: null, unique: true, sparse: true },
+    phone: { type: String, default: null },     // Encrypted E.164 format
+    whatsapp: { type: String, default: null },  // Encrypted E.164 format
 
-        }
-    }
-);
+    // A4 Sign-up approval & route guard fields
+    role: { type: String, default: null }, // Null until approved by an administrator
+    approval_status: {
+        type: String,
+        enum: ['PENDING', 'APPROVED', 'REJECTED'],
+        default: 'PENDING',
+        required: true,
+        index: true
+    },
+    verified: { type: Boolean, default: false, required: true },
+    notification_preference: {
+        type: String,
+        enum: ['EMAIL', 'SMS', 'WHATSAPP', 'NONE'],
+        default: 'EMAIL',
+        required: true
+    },
+    is_active: { type: Boolean, default: true, required: true },
+    department: { type: String, default: null, trim: true }
+}, {
+    collection: 'user',
+    timestamps: true // Automatically manages createdAt and updatedAt
+});
 
-const User = constMongoose.model('User',constUserSchema);
+// Index for filtering pending approval queues
+userSchema.index({ approval_status: 1, createdAt: -1 });
+
+const User = mongoose.model('User', userSchema);
+module.exports = User;
