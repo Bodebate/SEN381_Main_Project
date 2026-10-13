@@ -20,8 +20,8 @@ import { STATUS_LABEL, STATUS_ORDER, ServiceRequest } from '../core/models';
   styles: `
     .steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
     li { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
-    .dot { width: 28px; height: 28px; border-radius: 999px; border: 2px solid var(--ink); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; background: var(--surface); }
-    li.done .dot { background: var(--ink); color: #fff; }
+    .dot { width: 28px; height: 28px; border-radius: 999px; border: 2px solid var(--primary); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; background: var(--surface); }
+    li.done .dot { background: var(--primary); color: var(--on-primary); }
     @media (max-width: 520px) { strong { font-size: 12px; } }
   `,
 })
