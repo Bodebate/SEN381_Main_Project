@@ -17,7 +17,7 @@ const {
     mapRequestToClient,
     mapRequestGroupToClient,
     mapAuthToClient
-} = require('./utils/mappers');
+} = require('./utils/Mappers');
 
 function encryptText(text) {
     return constEncryption.encryptText(text);
@@ -42,6 +42,16 @@ function normalizeToE164(phoneInput) {
     return cleaned;
 }
 
+// Request status progression sequence rule (FR-STF-005)
+const REQUEST_STATUS_SEQUENCE = ['Submitted', 'Assigned', 'In progress', 'Resolved', 'Closed'];
+
+function validateStatusTransition(currentStatus, nextStatus) {
+    if (!nextStatus || currentStatus === nextStatus) return true;
+    const currentIndex = REQUEST_STATUS_SEQUENCE.indexOf(currentStatus);
+    const nextIndex = REQUEST_STATUS_SEQUENCE.indexOf(nextStatus);
+    return nextIndex === currentIndex + 1;
+}
+
 class DBUpdateWrite {
     // =========================================================================
     // HELPER: SYSTEM AUDIT LOGGING ENGINE
@@ -49,7 +59,8 @@ class DBUpdateWrite {
     async createAuditLog({ eventType, severity, actor, targetEntity, action, oldFields, newFields }) {
         const trackedFields = [
             'clearance', 'notes', 'security_level', 'priority',
-            'resolved', 'closed', 'assigned_to', 'work_categories'
+            'assigned_to', 'work_categories', 'status', 'role',
+            'approval_status', 'is_active', 'due_date'
         ];
 
         for (const field of trackedFields) {
@@ -152,7 +163,7 @@ class DBUpdateWrite {
 
             const newUser = await constUser.create(securedData);
 
-            await this.#createAuditLog({
+            await this.createAuditLog({
                 eventType: "USER_AUTH",
                 severity: "INFO",
                 actor,
@@ -223,9 +234,10 @@ class DBUpdateWrite {
             const oldUser = await constUser.findById(userId).lean();
             if (!oldUser) throw new Error(`User with ID ${userId} not found.`);
 
-            const updatedUser = await constUser.findByIdAndUpdate(userId, securedUpdates, { new: true }).lean();
+            // FR-STF-005: Pass runValidators: true
+            const updatedUser = await constUser.findByIdAndUpdate(userId, securedUpdates, { new: true, runValidators: true }).lean();
 
-            await this.#createAuditLog({
+            await this.createAuditLog({
                 eventType: "SECURITY_CHANGE",
                 severity: "WARNING",
                 actor,
@@ -247,7 +259,6 @@ class DBUpdateWrite {
     // =========================================================================
     async createRequest(requestData, actor) {
         try {
-            // Convert incoming client camelCase payload to DB snake_case format
             const sanitizedData = mapRequestToDb(requestData);
 
             const initialComment = requestData.statusComment || requestData.status_comment || requestData.comment || "Initial request submission.";
@@ -257,17 +268,18 @@ class DBUpdateWrite {
                 throw new Error("Validation Error: A user ID or requester ID is required to record request history.");
             }
 
+            // Accept only title, details, address (and contact details); force staff fields to defaults
             const allowedRequest = {
-                tracking_id: sanitizedData.tracking_id || ('REQ-' + Math.random().toString(36).substring(2, 9).toUpperCase()),
-                group_id: sanitizedData.group_id || null,
+                tracking_id: sanitizedData.tracking_id,
+                group_id: null,
                 title: sanitizedData.title,
                 details: sanitizedData.details,
-                requester: sanitizedData.requester || actorId,
-                security_level: sanitizedData.security_level !== undefined ? sanitizedData.security_level : 0,
-                request_category: sanitizedData.request_category || [],
-                priority: sanitizedData.priority !== undefined ? sanitizedData.priority : 0,
-                due_date: sanitizedData.due_date || null,
-                assigned_to: sanitizedData.assigned_to || null,
+                requester: actorId,
+                security_level: 0,
+                request_category: [],
+                priority: 0,
+                due_date: null,
+                assigned_to: null,
                 address: sanitizedData.address,
                 active: sanitizedData.active !== undefined ? sanitizedData.active : true,
                 status: 'Submitted',
@@ -282,7 +294,7 @@ class DBUpdateWrite {
 
             const newRequest = await constRequest.create(allowedRequest);
 
-            await this.#createAuditLog({
+            await this.createAuditLog({
                 eventType: "REQUEST_LIFECYCLE",
                 severity: "INFO",
                 actor,
@@ -301,17 +313,16 @@ class DBUpdateWrite {
 
     async updateRequest(requestId, updateData, actor) {
         try {
-            // Convert incoming updates from camelCase to snake_case
             const sanitizedUpdates = mapRequestToDb(updateData);
 
             const oldRequest = await constRequest.findById(requestId).lean();
             if (!oldRequest) throw new Error(`Request with ID ${requestId} not found.`);
 
             const allowedUpdates = {};
+            // Removed 'requester' and resolved/closed from allowed fields
             const allowedFields = [
-                'group_id', 'title', 'details', 'requester', 'security_level',
-                'request_category', 'priority', 'due_date', 'assigned_to',
-                'address', 'resolved', 'closed', 'active'
+                'group_id', 'title', 'details', 'priority',
+                'address', 'active'
             ];
 
             for (const field of allowedFields) {
@@ -320,7 +331,29 @@ class DBUpdateWrite {
                 }
             }
 
+            // Handle privileged fields update check (Staff or managers only, clearance >= 1)
+            const isPrivilegedRequestUpdate =
+                sanitizedUpdates.security_level !== undefined ||
+                sanitizedUpdates.assigned_to !== undefined ||
+                sanitizedUpdates.due_date !== undefined ||
+                sanitizedUpdates.request_category !== undefined;
+
+            if (isPrivilegedRequestUpdate) {
+                if (!actor || Number(actor.clearance) < 1) {
+                    throw new Error("Unauthorized: Staff or manager clearance is required to modify security level, assignment, due date, or request categories.");
+                }
+                if (sanitizedUpdates.security_level !== undefined) allowedUpdates.security_level = sanitizedUpdates.security_level;
+                if (sanitizedUpdates.assigned_to !== undefined) allowedUpdates.assigned_to = sanitizedUpdates.assigned_to;
+                if (sanitizedUpdates.due_date !== undefined) allowedUpdates.due_date = sanitizedUpdates.due_date;
+                if (sanitizedUpdates.request_category !== undefined) allowedUpdates.request_category = sanitizedUpdates.request_category;
+            }
+
             if (updateData.status && updateData.status !== oldRequest.status) {
+                // Enforce strict next step transition order
+                if (!validateStatusTransition(oldRequest.status, updateData.status)) {
+                    throw new Error(`Validation Error: Invalid status transition from '${oldRequest.status}' to '${updateData.status}'. Allowed sequence is Submitted → Assigned → In progress → Resolved → Closed.`);
+                }
+
                 const comment = updateData.statusComment || updateData.status_comment || updateData.comment;
                 if (!comment || typeof comment !== 'string' || comment.trim() === '') {
                     throw new Error(`Validation Error: A mandatory comment is required when changing request status from '${oldRequest.status}' to '${updateData.status}'.`);
@@ -333,12 +366,6 @@ class DBUpdateWrite {
 
                 allowedUpdates.status = updateData.status;
 
-                if (updateData.status === 'Resolved') allowedUpdates.resolved = true;
-                if (updateData.status === 'Closed') {
-                    allowedUpdates.resolved = true;
-                    allowedUpdates.closed = true;
-                }
-
                 const historyEntry = {
                     from: oldRequest.status,
                     to: updateData.status,
@@ -347,15 +374,16 @@ class DBUpdateWrite {
                     at: new Date()
                 };
 
+                // FR-STF-005: Pass runValidators: true
                 const updatedRequest = await constRequest.findByIdAndUpdate(
                     requestId,
                     {
                         $set: allowedUpdates,$push: { status_history: historyEntry }
                     },
-                    { new: true }
+                    { new: true, runValidators: true }
                 ).lean();
 
-                await this.#createAuditLog({
+                await this.createAuditLog({
                     eventType: "REQUEST_LIFECYCLE",
                     severity: "INFO",
                     actor,
@@ -368,12 +396,13 @@ class DBUpdateWrite {
                 return mapRequestToClient(updatedRequest);
             }
 
-            const updatedRequest = await constRequest.findByIdAndUpdate(requestId, allowedUpdates, { new: true }).lean();
+            // FR-STF-005: Pass runValidators: true
+            const updatedRequest = await constRequest.findByIdAndUpdate(requestId, allowedUpdates, { new: true, runValidators: true }).lean();
 
             let eventType = "REQUEST_LIFECYCLE";
             if (updateData.notes) eventType = "NOTE_CREATED";
 
-            await this.#createAuditLog({
+            await this.createAuditLog({
                 eventType,
                 severity: "INFO",
                 actor,
@@ -406,13 +435,14 @@ class DBUpdateWrite {
                 throw new Error(`Request document with ID ${requestId} not found.`);
             }
 
+            // FR-STF-005: Pass runValidators: true
             const updatedRequest = await constRequest.findByIdAndUpdate(
                 requestId,
                 { $push: { notes: newNote } },
-                { new: true }
+                { new: true, runValidators: true }
             ).lean();
 
-            await this.#createAuditLog({
+            await this.createAuditLog({
                 eventType: "NOTE_CREATED",
                 severity: "INFO",
                 actor,
@@ -448,13 +478,14 @@ class DBUpdateWrite {
                 throw new Error(`Request Group document with ID ${groupId} not found.`);
             }
 
+            // FR-STF-005: Pass runValidators: true
             const updatedGroup = await constRequestGroups.findByIdAndUpdate(
                 groupId,
                 { $push: { notes: newNote } },
-                { new: true }
+                { new: true, runValidators: true }
             ).lean();
 
-            await this.#createAuditLog({
+            await this.createAuditLog({
                 eventType: "NOTE_CREATED",
                 severity: "INFO",
                 actor,
@@ -486,7 +517,7 @@ class DBUpdateWrite {
 
             const newGroup = await constRequestGroups.create(allowedGroup);
 
-            await this.#createAuditLog({
+            await this.createAuditLog({
                 eventType: "GROUP_ASSIGNED",
                 severity: "INFO",
                 actor,
@@ -515,9 +546,10 @@ class DBUpdateWrite {
             const oldGroup = await constRequestGroups.findById(groupId).lean();
             if (!oldGroup) throw new Error(`Request Group with ID ${groupId} not found.`);
 
-            const updatedGroup = await constRequestGroups.findByIdAndUpdate(groupId, allowedUpdates, { new: true }).lean();
+            // FR-STF-005: Pass runValidators: true
+            const updatedGroup = await constRequestGroups.findByIdAndUpdate(groupId, allowedUpdates, { new: true, runValidators: true }).lean();
 
-            await this.#createAuditLog({
+            await this.createAuditLog({
                 eventType: updateData.notes ? "NOTE_CREATED" : "GROUP_ASSIGNED",
                 severity: "INFO",
                 actor,
@@ -556,7 +588,7 @@ class DBUpdateWrite {
 
             const newAuth = await constUserAuthorization.create(allowedAuth);
 
-            await this.#createAuditLog({
+            await this.createAuditLog({
                 eventType: "SECURITY_CHANGE",
                 severity: "CRITICAL",
                 actor,
@@ -589,13 +621,14 @@ class DBUpdateWrite {
             const oldAuth = await constUserAuthorization.findOne({ clearance: Number(clearanceLevel) }).lean();
             if (!oldAuth) throw new Error(`Authorization profile for clearance ${clearanceLevel} not found.`);
 
+            // FR-STF-005: Pass runValidators: true
             const updatedAuth = await constUserAuthorization.findOneAndUpdate(
                 { clearance: Number(clearanceLevel) },
                 allowedUpdates,
-                { new: true }
+                { new: true, runValidators: true }
             ).lean();
 
-            await this.#createAuditLog({
+            await this.createAuditLog({
                 eventType: "SECURITY_CHANGE",
                 severity: "CRITICAL",
                 actor,
@@ -625,7 +658,7 @@ class DBUpdateWrite {
 
             await constUser.findByIdAndDelete(userId);
 
-            await this.#createAuditLog({
+            await this.createAuditLog({
                 eventType: "SECURITY_CHANGE",
                 severity: "WARNING",
                 actor,
@@ -652,7 +685,7 @@ class DBUpdateWrite {
 
             await constRequest.findByIdAndDelete(requestId);
 
-            await this.#createAuditLog({
+            await this.createAuditLog({
                 eventType: "REQUEST_LIFECYCLE",
                 severity: "WARNING",
                 actor,
@@ -691,7 +724,7 @@ class DBUpdateWrite {
 
             await constRequestGroups.findByIdAndDelete(groupId);
 
-            await this.#createAuditLog({
+            await this.createAuditLog({
                 eventType: "GROUP_ASSIGNED",
                 severity: "CRITICAL",
                 actor,
@@ -725,11 +758,12 @@ class DBUpdateWrite {
 
             await constLog.deleteOne({ log_id: logId });
 
-            await this.#createAuditLog({
+            // Fixed: Use deleted log's _id instead of null to satisfy schema requirements
+            await this.createAuditLog({
                 eventType: "SYSTEM_ERROR",
                 severity: "CRITICAL",
                 actor,
-                targetEntity: { entity_type: "NOTE", entity_id: null },
+                targetEntity: { entity_type: "LOG", entity_id: oldLog._id },
                 action: `System log trace file manually purged (Purged trace ID: ${logId})`,
                 oldFields: oldLog,
                 newFields: {}
@@ -756,7 +790,7 @@ class DBUpdateWrite {
 
             await constUserAuthorization.deleteOne({ clearance: Number(clearanceLevel) });
 
-            await this.#createAuditLog({
+            await this.createAuditLog({
                 eventType: "SECURITY_CHANGE",
                 severity: "CRITICAL",
                 actor,

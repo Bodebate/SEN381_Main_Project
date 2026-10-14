@@ -2,18 +2,18 @@ const mongoose = require('mongoose');
 const { Schema } = mongoose;
 
 const userSchema = new Schema({
-    username: { type: String, required: true, unique: true, index: true },
+    username: { type: String, required: true, unique: true},
     password_hash: { type: String, required: true },
     first_name: { type: String, required: true },
     last_name: { type: String, required: true },
     clearance: { type: Number, required: true, min: 0, max: 5, default: 0 },
     work_categories: [{ type: String }],
-    email: { type: String, match: /^.+@.+\..+$/, default: null, unique: true, sparse: true },
+    email: { type: String, match: /^.+@.+\..+$/, unique: true, sparse: true },
     phone: { type: String, default: null },     // Encrypted E.164 format
     whatsapp: { type: String, default: null },  // Encrypted E.164 format
 
     // A4 Sign-up approval & route guard fields
-    role: { type: String, default: null }, // Null until approved by an administrator
+    role: { type: String,enum: ['REQUESTER', 'STAFF', 'MANAGER', 'ADMIN', null], default: null }, // Null until approved by an administrator
     approval_status: {
         type: String,
         enum: ['PENDING', 'APPROVED', 'REJECTED'],
@@ -24,7 +24,7 @@ const userSchema = new Schema({
     verified: { type: Boolean, default: false, required: true },
     notification_preference: {
         type: String,
-        enum: ['EMAIL', 'SMS', 'WHATSAPP', 'NONE'],
+        enum: ['EMAIL', 'SMS'],
         default: 'EMAIL',
         required: true
     },

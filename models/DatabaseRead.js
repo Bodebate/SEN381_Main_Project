@@ -14,7 +14,7 @@ const {
     mapRequestGroupToClient,
     mapLogToClient,
     mapAuthToClient
-} = require('./utils/mappers');
+} = require('./utils/Mappers');
 
 function encryptText(text) {
     return constEncryption.encryptText(text);
@@ -64,7 +64,8 @@ function buildRequestAccessFilter(actor) {
     }
 
     const clearance = Number(actor.clearance) || 0;
-    if (clearance >= 5 || actor.isAdmin === true) {
+    // Item 10.1: Grant managers full access by role
+    if (clearance >= 5 || actor.isAdmin === true || actor.role === 'Manager') {
         return null;
     }
 
@@ -85,6 +86,19 @@ function buildRequestAccessFilter(actor) {
         ]
     });
 
+    // Item 10.2: Allow staff to see new, uncategorized Submitted requests for triage
+    if (clearance >= 1 || actor.role === 'Staff' || actor.role === 'Manager') {
+        conditions.push({
+            $and: [
+                { status: 'Submitted' },
+                { $or: [
+                        { request_category: { $exists: false } },
+                        { request_category: { $size: 0 } }
+                    ]}
+            ]
+        });
+    }
+
     return { $or: conditions };
 }
 
@@ -94,22 +108,36 @@ class DBRead {
     // =========================================================================
     async findUserByIdentifier({ username, phone, whatsapp, email, firstName, lastName, clearance, inWorkCategories, allWorkCategories }, actor) {
         try {
-            const query = {};
-
-            if (username) query.username = username;
-            if (email) query.email = email;
-            if (clearance !== undefined && clearance !== null) query.clearance = Number(clearance);
-
-            if (inWorkCategories && inWorkCategories.length > 0) {
-                query.work_categories = { $in: Array.isArray(inWorkCategories) ? inWorkCategories : [inWorkCategories] };
-            } else if (allWorkCategories && allWorkCategories.length > 0) {
-                query.work_categories = { $all: Array.isArray(allWorkCategories) ? allWorkCategories : [allWorkCategories] };
+            // Item 10.4: Require an actor and limit PII access to self or clearance >= 4
+            if (!actor) {
+                const err = new Error("Unauthorized: Actor authentication required to search user records.");
+                err.status = 401;
+                throw err;
             }
 
-            if (phone) query.phone = encryptText(phone);
-            if (whatsapp) query.whatsapp = encryptText(whatsapp);
-            if (firstName) query.first_name = encryptText(firstName);
-            if (lastName) query.last_name = encryptText(lastName);
+            const query = {};
+            const actorClearance = Number(actor.clearance) || 0;
+
+            if (actorClearance < 4) {
+                const actorUserId = actor.user_id ? actor.user_id.toString() : null;
+                if (!actorUserId) return [];
+                query._id = new mongoose.Types.ObjectId(actorUserId);
+            } else {
+                if (username) query.username = username;
+                if (email) query.email = email;
+                if (clearance !== undefined && clearance !== null) query.clearance = Number(clearance);
+
+                if (inWorkCategories && inWorkCategories.length > 0) {
+                    query.work_categories = { $in: Array.isArray(inWorkCategories) ? inWorkCategories : [inWorkCategories] };
+                } else if (allWorkCategories && allWorkCategories.length > 0) {
+                    query.work_categories = { $all: Array.isArray(allWorkCategories) ? allWorkCategories : [allWorkCategories] };
+                }
+
+                if (phone) query.phone = encryptText(phone);
+                if (whatsapp) query.whatsapp = encryptText(whatsapp);
+                if (firstName) query.first_name = encryptText(firstName);
+                if (lastName) query.last_name = encryptText(lastName);
+            }
 
             if (Object.keys(query).length === 0) return null;
 
@@ -135,7 +163,7 @@ class DBRead {
     // =========================================================================
     // 2. REQUEST READS (Enforces Visibility Rules & Maps to Client DTO)
     // =========================================================================
-    async findRequests({ id, groupId, title, securityLevel, priority, assignedTo, resolved, closed }, actor) {
+    async findRequests({ id, groupId, title, securityLevel, priority, assignedTo, status, isOpen }, actor) {
         try {
             validateObjectId(id, 'Request ID');
             validateObjectId(groupId, 'Group ID');
@@ -149,12 +177,16 @@ class DBRead {
             if (securityLevel !== undefined && securityLevel !== null) query.security_level = Number(securityLevel);
             if (priority !== undefined && priority !== null) query.priority = Number(priority);
             if (assignedTo) query.assigned_to = assignedTo;
+            if (status) query.status = status;
 
-            const parsedResolved = parseBoolean(resolved);
-            if (parsedResolved !== undefined) query.resolved = parsedResolved;
-
-            const parsedClosed = parseBoolean(closed);
-            if (parsedClosed !== undefined) query.closed = parsedClosed;
+            const parsedIsOpen = parseBoolean(isOpen);
+            if (parsedIsOpen !== undefined) {
+                if (parsedIsOpen) {
+                    query.status = { $nin: ['Resolved', 'Closed'] };
+                } else {
+                    query.status = { $in: ['Resolved', 'Closed'] };
+                }
+            }
 
             // Enforce D9 Visibility Rules
             const accessFilter = buildRequestAccessFilter(actor);
@@ -191,12 +223,19 @@ class DBRead {
             if (title) query.title = { $regex: escapeRegex(title),$options: 'i' };
 
             const clearance = Number(actor?.clearance) || 0;
-            if (clearance < 5 && !actor?.isAdmin) {
+            // Item 10.3: Tie request group visibility to the visibility of its primary request instead of blanket $exists check
+            if (clearance < 5 && !actor?.isAdmin && actor?.role !== 'Manager') {
                 const userId = actor?.user_id ? new mongoose.Types.ObjectId(actor.user_id) : null;
                 if (userId) {
+                    const accessFilter = buildRequestAccessFilter(actor);
+                    let accessibleRequestIds = [];
+                    if (accessFilter) {
+                        const allowedRequests = await constRequest.find(accessFilter).select('_id').lean();
+                        accessibleRequestIds = allowedRequests.map(r => r._id);
+                    }
                     query.$or = [
                         { created_by: userId },
-                        { primary_request_id: { $exists: true } }
+                        { primary_request_id: { $in: accessibleRequestIds } }
                     ];
                 } else {
                     return [];

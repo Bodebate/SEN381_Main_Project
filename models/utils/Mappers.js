@@ -27,6 +27,56 @@ function mapUserToClient(user) {
 }
 
 /**
+ * Helper to map database status to front-end uppercase status enums.
+ */
+function statusToClient(status) {
+    if (!status) return 'SUBMITTED';
+    const map = {
+        'Submitted': 'SUBMITTED',
+        'Assigned': 'ASSIGNED',
+        'In progress': 'IN_PROGRESS',
+        'Resolved': 'RESOLVED',
+        'Closed': 'CLOSED'
+    };
+    return map[status] || status.toUpperCase().replace(/\s+/g, '_');
+}
+
+/**
+ * Helper to map front-end uppercase status enums to database status format.
+ */
+function statusToDb(status) {
+    if (!status) return 'Submitted';
+    const map = {
+        'SUBMITTED': 'Submitted',
+        'ASSIGNED': 'Assigned',
+        'IN_PROGRESS': 'In progress',
+        'RESOLVED': 'Resolved',
+        'CLOSED': 'Closed'
+    };
+    return map[status] || status;
+}
+
+/**
+ * Helper to map database numeric priority to front-end string priority enums.
+ */
+function priorityToClient(priority) {
+    if (priority === 0 || priority === '0' || priority === 'LOW') return 'LOW';
+    if (priority === 1 || priority === '1' || priority === 'MEDIUM') return 'MEDIUM';
+    if (priority === 2 || priority === '2' || priority === 'HIGH') return 'HIGH';
+    return priority !== undefined && priority !== null ? String(priority).toUpperCase() : null;
+}
+
+/**
+ * Helper to map front-end string priority enums to database numeric format.
+ */
+function priorityToDb(priority) {
+    if (priority === 'LOW') return 0;
+    if (priority === 'MEDIUM') return 1;
+    if (priority === 'HIGH') return 2;
+    return priority !== undefined && priority !== null ? Number(priority) : 0;
+}
+
+/**
  * Maps client Request payload (camelCase) to database schema format (snake_case).
  */
 function mapRequestToDb(data) {
@@ -37,17 +87,28 @@ function mapRequestToDb(data) {
     if (data.groupId !== undefined) dbData.group_id = data.groupId;
     if (data.title !== undefined) dbData.title = data.title;
     if (data.details !== undefined) dbData.details = data.details;
+
     if (data.requester !== undefined) dbData.requester = data.requester;
+    if (data.requesterId !== undefined) dbData.requester = data.requesterId;
+
     if (data.securityLevel !== undefined) dbData.security_level = data.securityLevel;
-    if (data.requestCategory !== undefined) dbData.request_category = data.requestCategory;
-    if (data.priority !== undefined) dbData.priority = data.priority;
+
+    if (data.requestCategory !== undefined) {
+        dbData.request_category = data.requestCategory;
+    } else if (data.categoryId !== undefined) {
+        dbData.request_category = data.categoryId ? [data.categoryId] : [];
+    }
+
+    if (data.priority !== undefined) dbData.priority = priorityToDb(data.priority);
     if (data.dueAt !== undefined) dbData.due_date = data.dueAt;
-    if (data.dueDate !== undefined) dbData.due_date = data.dueDate; // Fallback alias
+    if (data.dueDate !== undefined) dbData.due_date = data.dueDate;
+
     if (data.assigneeId !== undefined) dbData.assigned_to = data.assigneeId;
-    if (data.assignedTo !== undefined) dbData.assigned_to = data.assignedTo; // Fallback alias
+    if (data.assignedTo !== undefined) dbData.assigned_to = data.assignedTo;
+
     if (data.address !== undefined) dbData.address = data.address;
     if (data.active !== undefined) dbData.active = data.active;
-    if (data.status !== undefined) dbData.status = data.status;
+    if (data.status !== undefined) dbData.status = statusToDb(data.status);
     if (data.notes !== undefined) dbData.notes = data.notes;
 
     return dbData;
@@ -60,6 +121,8 @@ function mapRequestToClient(req) {
     if (!req) return null;
     const obj = req.toObject ? req.toObject() : req;
 
+    const categories = obj.request_category || [];
+
     return {
         id: obj._id,
         trackingId: obj.tracking_id,
@@ -67,29 +130,34 @@ function mapRequestToClient(req) {
         title: obj.title,
         details: obj.details,
         requester: obj.requester,
+        requesterId: obj.requester,
         securityLevel: obj.security_level,
-        requestCategory: obj.request_category || [],
-        priority: obj.priority,
+        categoryId: categories.length > 0 ? categories[0] : null,
+        requestCategory: categories,
+        priority: priorityToClient(obj.priority),
         dueAt: obj.due_date,
+        dueDate: obj.due_date,
         assigneeId: obj.assigned_to,
+        assignedTo: obj.assigned_to,
         address: obj.address,
         active: obj.active,
-        resolved: obj.resolved,
-        closed: obj.closed,
-        status: obj.status,
+        status: statusToClient(obj.status),
         statusHistory: (obj.status_history || []).map(h => ({
-            from: h.from,
-            to: h.to,
+            from: statusToClient(h.from),
+            to: statusToClient(h.to),
             comment: h.comment,
             by: h.by,
             at: h.at
         })),
         notes: (obj.notes || []).map(n => ({
             noteId: n.note_id,
+            id: n.note_id,
             details: n.details,
             category: n.category,
             userId: n.user_id,
-            date: n.date
+            date: n.date,
+            type: n.type || 'GENERAL',
+            visibility: n.visibility || 'INTERNAL'
         })),
         createdAt: obj.createdAt,
         updatedAt: obj.updatedAt
@@ -112,10 +180,13 @@ function mapRequestGroupToClient(group) {
         primaryRequestId: obj.primary_request_id,
         notes: (obj.notes || []).map(n => ({
             noteId: n.note_id,
+            id: n.note_id,
             details: n.details,
             category: n.category,
             userId: n.user_id,
-            date: n.date
+            date: n.date,
+            type: n.type || 'GENERAL',
+            visibility: n.visibility || 'INTERNAL'
         }))
     };
 }
@@ -158,7 +229,7 @@ function mapLogToClient(log) {
  */
 function mapAuthToClient(auth) {
     if (!auth) return null;
-    const obj = auth.toObject ? auth.toObject() : auth;
+    const obj = auth.toObject ? auth.toObject() : obj;
 
     return {
         id: obj._id,
