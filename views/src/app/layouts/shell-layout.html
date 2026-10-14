@@ -2,7 +2,7 @@
 <header class="shell-header">
   <a routerLink="/" class="brand"><span class="logo" aria-hidden="true"></span>CivicConnect</a>
   @if (roleChip()) {
-    <span class="chip">{{ roleChip() }}</span>
+    <span class="chip role-chip">{{ roleChip() }}</span>
   }
   @if (user()?.role === 'REQUESTER') {
     <nav class="top-nav" aria-label="Main">
