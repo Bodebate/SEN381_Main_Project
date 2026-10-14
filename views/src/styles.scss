@@ -1,6 +1,5 @@
 /*
- * CivicConnect global styles — mirrors the wireframe look (greyscale, IBM Plex).
- * Plain SCSS by team decision; Angular CDK supplies menu/overlay behaviour only.
+ Angular CDK supplies menu/overlay behaviour only.
  */
 @use '@angular/cdk/overlay-prebuilt.css';
 
@@ -18,6 +17,10 @@
   --danger-soft: #fbeaea;
   --success: #1e6b3a;
   --success-soft: #e6f3eb;
+  --primary: #1d1d1b;
+  --primary-hover: #3a3a37;
+  --on-primary: #fff;
+  --primary-tint: var(--surface);
   --radius: 6px;
   --font: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --mono: 'IBM Plex Mono', ui-monospace, monospace;
@@ -63,7 +66,7 @@ a:hover { color: var(--link-hover); }
 .box.tight { padding: 14px 16px; }
 .box.flush { padding: 0; }
 .box.soft { background: var(--surface-soft); }
-.box.strong { border: 2px solid var(--ink); }
+.box.strong { border: 2px solid var(--primary); }
 .box.dashed { border-style: dashed; }
 /* position: relative keeps visually-hidden text inside the scroll box (no page-level sideways scroll). */
 .scroll-x { overflow-x: auto; position: relative; }
@@ -84,8 +87,8 @@ a:hover { color: var(--link-hover); }
   white-space: nowrap; cursor: pointer;
 }
 .btn:hover { background: var(--surface-muted); color: var(--ink); }
-.btn.primary { background: var(--ink); color: #fff; }
-.btn.primary:hover { background: #3a3a37; color: #fff; }
+.btn.primary { background: var(--primary); border-color: var(--primary); color: var(--on-primary); }
+.btn.primary:hover { background: var(--primary-hover); border-color: var(--primary-hover); color: var(--on-primary); }
 .btn.small { min-height: 36px; padding: 0 12px; }
 .btn.icon { padding: 0 12px; }
 .btn.pill { border-radius: 999px; padding: 0 14px; }
@@ -121,7 +124,7 @@ legend { padding: 0; }
 
 /* ---------- chips & badges ---------- */
 .chip { display: inline-block; padding: 3px 10px; border: 1.5px solid var(--ink); border-radius: 999px; font-size: 12px; font-weight: 600; white-space: nowrap; }
-.chip.dark { background: var(--ink); color: #fff; }
+.chip.dark { background: var(--primary); border-color: var(--primary); color: var(--on-primary); }
 .chip.dashed { border-style: dashed; }
 .chip.muted { border-color: var(--line); color: var(--ink-muted); }
 .chip-btn { cursor: pointer; background: var(--surface); font: inherit; font-size: 12px; font-weight: 600; }
@@ -130,7 +133,7 @@ legend { padding: 0; }
 /* ---------- tabs ---------- */
 .tabs { display: flex; flex-wrap: wrap; gap: 6px; }
 .tabs .btn { min-height: 36px; }
-.tabs .btn[aria-selected='true'], .tabs .btn.active { background: var(--ink); color: #fff; }
+.tabs .btn[aria-selected='true'], .tabs .btn.active { background: var(--primary); border-color: var(--primary); color: var(--on-primary); }
 
 /* ---------- tables ---------- */
 table.data { border-collapse: collapse; width: 100%; }
@@ -144,13 +147,18 @@ table.data tbody tr:last-child td { border-bottom: 0; }
 .bars { display: flex; flex-direction: column; gap: 8px; }
 .bar-row { display: grid; grid-template-columns: 140px minmax(0, 1fr) 36px; gap: 8px; align-items: center; font-size: 13px; }
 .bar-track { height: 14px; background: var(--surface-muted); border-radius: 3px; overflow: hidden; }
-.bar-fill { height: 100%; background: var(--ink); }
+.bar-fill { height: 100%; background: var(--primary); }
 .placeholder { background: var(--surface-muted); border: 1.5px dashed var(--line); border-radius: var(--radius); display: flex; align-items: center; justify-content: center; color: var(--ink-muted); font-size: 13px; text-align: center; padding: 12px; min-height: 140px; }
 
 /* ---------- menus (CDK) ---------- */
 .menu { display: flex; flex-direction: column; min-width: 200px; padding: 6px; background: var(--surface); border: 1.5px solid var(--ink); border-radius: var(--radius); box-shadow: 0 6px 18px rgba(0, 0, 0, .12); }
 .menu-item { display: block; width: 100%; text-align: left; padding: 10px 12px; border: 0; background: none; font: inherit; color: var(--ink); text-decoration: none; border-radius: 4px; cursor: pointer; }
 .menu-item:hover, .menu-item:focus { background: var(--surface-muted); outline: none; }
+
+/* role palettes (set on the signed-in shell) */
+.theme-requester { --primary: #b45309; --primary-hover: #92400e; --primary-tint: #fff7ed; }
+.theme-staff     { --primary: #0f766e; --primary-hover: #115e59; --primary-tint: #f0fdfa; }
+.theme-manager   { --primary: #6d28d9; --primary-hover: #5b21b6; --primary-tint: #f5f3ff; }
 
 @media (max-width: 640px) {
   .page { padding: 20px 16px 40px; }

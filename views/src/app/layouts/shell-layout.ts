@@ -16,6 +16,7 @@ import { ROLE_LABEL, initials } from '../core/models';
   imports: [RouterOutlet, RouterLink, RouterLinkActive, CdkMenuTrigger, CdkMenu, CdkMenuItem],
   templateUrl: './shell-layout.html',
   styleUrl: './shell-layout.scss',
+  host: { '[class]': 'theme()' },
 })
 export class ShellLayout implements OnInit {
   private readonly session = inject(SessionService);
@@ -28,6 +29,15 @@ export class ShellLayout implements OnInit {
   protected readonly isManager = computed(() => isManagerRole(this.user()));
   protected readonly initials = computed(() => initials(this.user()));
   protected readonly pendingApprovals = signal(0);
+
+  /** Colour palette for the signed-in user's role (see the theme-* classes in styles.scss). */
+  protected readonly theme = computed(() => {
+    const role = this.user()?.role;
+    if(role === 'REQUESTER') return 'theme-requester';
+    if(role === 'STAFF') return 'theme-staff';
+    if(role === 'MANAGER' || role === 'ADMIN') return 'theme-manager';
+    return '';
+  });
 
   /** e.g. "Staff · Water · Clearance 3" or "Manager · All departments". */
   protected readonly roleChip = computed(() => {
