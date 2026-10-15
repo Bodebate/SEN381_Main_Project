@@ -22,6 +22,18 @@ const {
 function encryptText(text) {
     return constEncryption.encryptText(text);
 }
+function decryptText(text){
+    if(!text) return null;
+    return constEncryption.decryptText(text);
+}
+
+const toClientUser = u => u && mapUserToClient({
+    ...(u.toObject ? u.toObject() : u),
+    first_name: decryptText(u.first_name),
+    last_name: decryptText(u.last_name),
+    phone: decryptText(u.phone),
+    whatsapp: decryptText(u.whatsapp),
+});
 
 /**
  * Validates and normalizes a phone number to E.164 format.
@@ -173,7 +185,7 @@ class DBUpdateWrite {
                 newFields: newUser
             });
 
-            return mapUserToClient(newUser);
+            return toClientUser(newUser);
         } catch (err) {
             console.error("Error creating user:", err);
             throw err;
@@ -247,7 +259,7 @@ class DBUpdateWrite {
                 newFields: updatedUser
             });
 
-            return mapUserToClient(updatedUser);
+            return toClientUser(updatedUser);
         } catch (err) {
             console.error("Error updating user:", err);
             throw err;

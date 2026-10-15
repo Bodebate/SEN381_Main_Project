@@ -26,6 +26,14 @@ function decryptText(text) {
     return constEncryption.decryptText(text);
 }
 
+const toClientUser = u => u && mapUserToClient({
+    ...(u.toObject ? u.toObject() : u),
+    first_name: decryptText(u.first_name),
+    last_name: decryptText(u.last_name),
+    phone: decryptText(u.phone),
+    whatsapp: decryptText(u.whatsapp),
+});
+
 /**
  * Utility to escape special regex characters to prevent Regex Injection and ReDoS.
  */
@@ -145,16 +153,7 @@ class DBRead {
             const records = await constUser.find(query).lean();
 
             // Decrypt PII and map to client DTO format
-            return records.map(user => {
-                const decryptedUser = {
-                    ...user,
-                    phone: decryptText(user.phone),
-                    whatsapp: decryptText(user.whatsapp),
-                    first_name: decryptText(user.first_name),
-                    last_name: decryptText(user.last_name)
-                };
-                return mapUserToClient(decryptedUser);
-            });
+            return records.map(toClientUser);
         } catch (err) {
             console.error("Error running secure user resolution read operations:", err);
             throw err;

@@ -252,5 +252,5 @@ module.exports = {
     mapRequestGroupToClient,
     mapLogToClient,
     mapAuthToClient,
-    APPROVAL_TO_DB
+    APPROVAL_TO_DB,
 };
