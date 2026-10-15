@@ -22,6 +22,22 @@ defaults:
     working-directory: views
 
 jobs:
+  backend:
+    name: Back end - unit tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+      - name: Back-end unit tests (Jest)
+        run: npm test
   frontend:
     name: Front end - lint, unit tests, build
     runs-on: ubuntu-latest

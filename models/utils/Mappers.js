@@ -229,7 +229,7 @@ function mapLogToClient(log) {
  */
 function mapAuthToClient(auth) {
     if (!auth) return null;
-    const obj = auth.toObject ? auth.toObject() : obj;
+    const obj = auth.toObject ? auth.toObject() : auth;
 
     return {
         id: obj._id,
@@ -242,6 +242,7 @@ function mapAuthToClient(auth) {
 }
 
 module.exports = {
+    statusToDb,
     mapUserToClient,
     mapRequestToDb,
     mapRequestToClient,
