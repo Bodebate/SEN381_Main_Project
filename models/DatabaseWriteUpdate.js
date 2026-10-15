@@ -253,7 +253,30 @@ class DBUpdateWrite {
             throw err;
         }
     }
+    async verifyPassword(credentials) {
+        try {
+            const { username, password } = credentials || {};
 
+            if (!username || !password) {
+                throw new Error('Credentials object must contain both "username" and "password".');
+            }
+
+            // 1. Find the user in MongoDB
+            const user = await User.findOne({ username });
+            if (!user) {
+                console.log(`User not found: ${username}`);
+                return false;
+            }
+
+            // 2. Compare the plaintext password with the stored hash
+            const isMatch = encryptText(password) == user.password_hash? true: false;
+
+            return isMatch;
+        } catch (error) {
+            console.error('Error verifying password:', error.message);
+            throw error;
+        }
+    }
     // =========================================================================
     // 2. REQUEST WRITES & UPDATES
     // =========================================================================
