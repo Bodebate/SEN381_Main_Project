@@ -24,14 +24,14 @@ const requestSchema = new Schema({
     // Five-step status flow (FR-STF-005)
     status: {
         type: String,
-        enum: ['Submitted', 'Assigned', 'In progress', 'Resolved', 'Closed'],
-        default: 'Submitted',
+        enum: ['SUBMITTED', 'ASSIGNED', 'IN PROGRESS', 'RESOLVED', 'CLOSED'],
+        default: 'SUBMITTED',
         required: true,
         index: true
     },
     status_history: [{
-        from: { type: String, enum: ['Submitted', 'Assigned', 'In progress', 'Resolved', 'Closed', null], default: null },
-        to: { type: String, enum: ['Submitted', 'Assigned', 'In progress', 'Resolved', 'Closed'], required: true },
+        from: { type: String, enum: ['SUBMITTED', 'ASSIGNED', 'IN PROGRESS', 'RESOLVED', 'CLOSED', null], default: null },
+        to: { type: String, enum: ['SUBMITTED', 'ASSIGNED', 'IN PROGRESS', 'RESOLVED', 'CLOSED'], required: true },
         comment: { type: String, required: true },
         by: { type: Schema.Types.ObjectId, ref: 'User', required: true },
         at: { type: Date, required: true, default: Date.now }

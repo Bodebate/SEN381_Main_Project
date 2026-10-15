@@ -348,15 +348,71 @@ class DBUpdateWrite {
                 if (sanitizedUpdates.request_category !== undefined) allowedUpdates.request_category = sanitizedUpdates.request_category;
             }
 
-            if (updateData.status && updateData.status !== oldRequest.status) {
+            // if (updateData.status && updateData.status !== oldRequest.status) {
+            //     // Enforce strict next step transition order
+            //     if (!validateStatusTransition(oldRequest.status, updateData.status)) {
+            //         throw new Error(`Validation Error: Invalid status transition from '${oldRequest.status}' to '${updateData.status}'. Allowed sequence is Submitted → Assigned → In progress → Resolved → Closed.`);
+            //     }
+            //
+            //     const comment = updateData.statusComment || updateData.status_comment || updateData.comment;
+            //     if (!comment || typeof comment !== 'string' || comment.trim() === '') {
+            //         throw new Error(`Validation Error: A mandatory comment is required when changing request status from '${oldRequest.status}' to '${updateData.status}'.`);
+            //     }
+            //
+            //     const actorId = actor?.user_id ? new mongoose.Types.ObjectId(actor.user_id) : null;
+            //     if (!actorId) {
+            //         throw new Error("Unauthorized: Actor identification is required to modify request status.");
+            //     }
+            //
+            //     allowedUpdates.status = updateData.status;
+            //
+            //     const historyEntry = {
+            //         from: oldRequest.status,
+            //         to: updateData.status,
+            //         comment: comment.trim(),
+            //         by: actorId,
+            //         at: new Date()
+            //     };
+            //
+            //     // FR-STF-005: Pass runValidators: true
+            //     const updatedRequest = await constRequest.findByIdAndUpdate(
+            //         requestId,
+            //         {
+            //             $set: allowedUpdates,$push: { status_history: historyEntry }
+            //         },
+            //         { new: true, runValidators: true }
+            //     ).lean();
+            //
+            //     await this.createAuditLog({
+            //         eventType: "REQUEST_LIFECYCLE",
+            //         severity: "INFO",
+            //         actor,
+            //         targetEntity: { entity_type: "REQUEST", entity_id: requestId },
+            //         action: `Request status transitioned from '${oldRequest.status}' to '${updateData.status}'`,
+            //         oldFields: oldRequest,
+            //         newFields: updatedRequest
+            //     });
+            //
+            //     return mapRequestToClient(updatedRequest);
+            //}
+            // Converted by mapRequestToDb, e.g. 'ASSIGNED' → 'Assigned'
+            const newStatus = sanitizedUpdates.status;
+
+            if (newStatus && newStatus !== oldRequest.status) {
+                // Only staff, managers and admins may change a request's status (FR-STF-005)
+                const isStaffActor = ['STAFF', 'MANAGER', 'ADMIN'].includes(actor?.role) || Number(actor?.clearance) >= 1;
+                if (!isStaffActor) {
+                    throw new Error("Unauthorized: Only staff or managers can change a request's status.");
+                }
+
                 // Enforce strict next step transition order
-                if (!validateStatusTransition(oldRequest.status, updateData.status)) {
-                    throw new Error(`Validation Error: Invalid status transition from '${oldRequest.status}' to '${updateData.status}'. Allowed sequence is Submitted → Assigned → In progress → Resolved → Closed.`);
+                if (!validateStatusTransition(oldRequest.status, newStatus)) {
+                    throw new Error(`Validation Error: Invalid status transition from '${oldRequest.status}' to '${newStatus}'. Allowed sequence is Submitted → Assigned → In progress → Resolved → Closed.`);
                 }
 
                 const comment = updateData.statusComment || updateData.status_comment || updateData.comment;
                 if (!comment || typeof comment !== 'string' || comment.trim() === '') {
-                    throw new Error(`Validation Error: A mandatory comment is required when changing request status from '${oldRequest.status}' to '${updateData.status}'.`);
+                    throw new Error(`Validation Error: A mandatory comment is required when changing request status from '${oldRequest.status}' to '${newStatus}'.`);
                 }
 
                 const actorId = actor?.user_id ? new mongoose.Types.ObjectId(actor.user_id) : null;
@@ -364,11 +420,11 @@ class DBUpdateWrite {
                     throw new Error("Unauthorized: Actor identification is required to modify request status.");
                 }
 
-                allowedUpdates.status = updateData.status;
+                allowedUpdates.status = newStatus;
 
                 const historyEntry = {
                     from: oldRequest.status,
-                    to: updateData.status,
+                    to: newStatus,
                     comment: comment.trim(),
                     by: actorId,
                     at: new Date()
@@ -378,7 +434,8 @@ class DBUpdateWrite {
                 const updatedRequest = await constRequest.findByIdAndUpdate(
                     requestId,
                     {
-                        $set: allowedUpdates,$push: { status_history: historyEntry }
+                        $set: allowedUpdates,
+                        $push: { status_history: historyEntry }
                     },
                     { new: true, runValidators: true }
                 ).lean();
@@ -388,7 +445,7 @@ class DBUpdateWrite {
                     severity: "INFO",
                     actor,
                     targetEntity: { entity_type: "REQUEST", entity_id: requestId },
-                    action: `Request status transitioned from '${oldRequest.status}' to '${updateData.status}'`,
+                    action: `Request status transitioned from '${oldRequest.status}' to '${newStatus}'`,
                     oldFields: oldRequest,
                     newFields: updatedRequest
                 });

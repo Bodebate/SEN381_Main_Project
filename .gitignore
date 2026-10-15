@@ -21,3 +21,4 @@ views/dist/
 views/playwright-report/
 views/test-results/
 .DS_Store
+node_modules/.package-lock.json

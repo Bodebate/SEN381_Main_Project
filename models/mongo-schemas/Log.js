@@ -25,7 +25,7 @@ const logSchema = new Schema({
     },
     target_entity: {
         type: {
-            entity_type: { type: String, enum: ["REQUEST", "USER", "GROUP", "NOTE"], required: true },
+            entity_type: { type: String, enum: ["REQUEST", "USER", "GROUP", "NOTE", "LOG"], required: true },
             entity_id: { type: Schema.Types.ObjectId, required: true, index: true }
         },
         required: true

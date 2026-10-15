@@ -23,4 +23,4 @@ class Encription {
         return decipher.update(cipherText, 'hex', 'utf8');
     }
 }
-module.exports = Encription
+module.exports = new Encription();

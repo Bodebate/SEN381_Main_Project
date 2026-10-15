@@ -13,7 +13,8 @@ const {
     mapRequestToClient,
     mapRequestGroupToClient,
     mapLogToClient,
-    mapAuthToClient
+    mapAuthToClient,
+    statusToDb
 } = require('./utils/Mappers');
 
 function encryptText(text) {
@@ -65,7 +66,7 @@ function buildRequestAccessFilter(actor) {
 
     const clearance = Number(actor.clearance) || 0;
     // Item 10.1: Grant managers full access by role
-    if (clearance >= 5 || actor.isAdmin === true || actor.role === 'Manager') {
+    if (clearance >= 5 || actor.isAdmin === true || actor.role === 'MANAGER' || actor.role === 'ADMIN') {
         return null;
     }
 
@@ -87,7 +88,7 @@ function buildRequestAccessFilter(actor) {
     });
 
     // Item 10.2: Allow staff to see new, uncategorized Submitted requests for triage
-    if (clearance >= 1 || actor.role === 'Staff' || actor.role === 'Manager') {
+    if (clearance >= 1 || ['STAFF', 'MANAGER', 'ADMIN'].includes(actor.role)) {
         conditions.push({
             $and: [
                 { status: 'Submitted' },
@@ -177,7 +178,7 @@ class DBRead {
             if (securityLevel !== undefined && securityLevel !== null) query.security_level = Number(securityLevel);
             if (priority !== undefined && priority !== null) query.priority = Number(priority);
             if (assignedTo) query.assigned_to = assignedTo;
-            if (status) query.status = status;
+            if (status) query.status = statusToDb(status);
 
             const parsedIsOpen = parseBoolean(isOpen);
             if (parsedIsOpen !== undefined) {
@@ -224,7 +225,7 @@ class DBRead {
 
             const clearance = Number(actor?.clearance) || 0;
             // Item 10.3: Tie request group visibility to the visibility of its primary request instead of blanket $exists check
-            if (clearance < 5 && !actor?.isAdmin && actor?.role !== 'Manager') {
+            if (clearance < 5 && !actor?.isAdmin && !['MANAGER', 'ADMIN'].includes(actor?.role)) {
                 const userId = actor?.user_id ? new mongoose.Types.ObjectId(actor.user_id) : null;
                 if (userId) {
                     const accessFilter = buildRequestAccessFilter(actor);
