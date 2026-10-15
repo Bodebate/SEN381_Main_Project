@@ -6,7 +6,8 @@
   "scripts": {
     "test": "jest",
     "web": "npm --prefix views start",
-    "web:build": "npm --prefix views run build"
+    "web:build": "npm --prefix views run build",
+    "start": "node server.js"
   },
   "jest": {
     "testEnvironment": "node",

@@ -1,28 +1,31 @@
 /**
  * Maps database User document (snake_case) to client DTO (camelCase).
  */
+const APPROVAL_TO_CLIENT = { PENDING: 'PENDING', APPROVED: 'APPROVED', REJECTED: 'DECLINED' };
+const APPROVAL_TO_DB = { APPROVE: 'APPROVED', DECLINE: 'REJECTED' };
+
 function mapUserToClient(user) {
     if (!user) return null;
     const obj = user.toObject ? user.toObject() : user;
-
     return {
-        id: obj._id,
+        id: String(obj._id),
         username: obj.username,
         firstName: obj.first_name,
         lastName: obj.last_name,
-        clearance: obj.clearance,
-        workCategories: obj.work_categories || [],
-        email: obj.email,
-        phone: obj.phone, // decrypted if handled in read layer
-        whatsapp: obj.whatsapp,
-        role: obj.role,
-        approvalStatus: obj.approval_status,
-        verified: obj.verified,
-        notificationPreference: obj.notification_preference,
-        isActive: obj.is_active,
-        department: obj.department,
+        role: obj.role ?? null,
+        clearance: obj.clearance ?? 0,
+        departmentId: obj.department ?? null,
+        workCategoryIds: obj.work_categories || [],
+        email: obj.email ?? null,
+        phone: obj.phone ?? null,
+        notifyVia: obj.notification_preference || 'EMAIL',
+        verified: Boolean(obj.verified),
+        approval: APPROVAL_TO_CLIENT[obj.approval_status] || 'PENDING',
+        approvedBy: obj.approved_by ? String(obj.approved_by) : null,
+        approvedAt: obj.approved_at ?? null,
+        decisionNote: obj.decision_note ?? null,
+        isActive: obj.is_active !== false,
         createdAt: obj.createdAt,
-        updatedAt: obj.updatedAt
     };
 }
 
@@ -248,5 +251,6 @@ module.exports = {
     mapRequestToClient,
     mapRequestGroupToClient,
     mapLogToClient,
-    mapAuthToClient
+    mapAuthToClient,
+    APPROVAL_TO_DB
 };

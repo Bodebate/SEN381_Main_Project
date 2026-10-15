@@ -7,5 +7,5 @@ const port = Number(process.env.PORT) || 3000;
 (async () => {
     await connectDB();
     await new DBConnect().createDB();
-    createApp().listen(port,() => console.log(`CivivConnect API on http://localhost:${port}/api`));
+    createApp().listen(port,() => console.log(`CivicConnect API on http://localhost:${port}/api`));
 })();

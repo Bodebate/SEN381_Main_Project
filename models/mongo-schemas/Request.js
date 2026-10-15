@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const { Schema } = mongoose;
+const STATUSES = ['Submitted', 'Assigned', 'In progress', 'Resolved', 'Closed'];
 
 const requestSchema = new Schema({
     tracking_id: {
@@ -24,14 +25,14 @@ const requestSchema = new Schema({
     // Five-step status flow (FR-STF-005)
     status: {
         type: String,
-        enum: ['SUBMITTED', 'ASSIGNED', 'IN PROGRESS', 'RESOLVED', 'CLOSED'],
-        default: 'SUBMITTED',
+        enum: STATUSES,
+        default: 'Submitted',
         required: true,
         index: true
     },
     status_history: [{
-        from: { type: String, enum: ['SUBMITTED', 'ASSIGNED', 'IN PROGRESS', 'RESOLVED', 'CLOSED', null], default: null },
-        to: { type: String, enum: ['SUBMITTED', 'ASSIGNED', 'IN PROGRESS', 'RESOLVED', 'CLOSED'], required: true },
+        from: { type: String, enum: [...STATUSES, null], default: null },
+        to: { type: String, enum: STATUSES, required: true },
         comment: { type: String, required: true },
         by: { type: Schema.Types.ObjectId, ref: 'User', required: true },
         at: { type: Date, required: true, default: Date.now }

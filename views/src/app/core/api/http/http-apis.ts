@@ -23,16 +23,12 @@ import {
 } from '../../models';
 import { AuthApi, ReportApi, RequestApi, UserApi } from '../contracts';
 
-
-
 /**
  * HTTP implementations for the real Express API (used when `environment.useMockApi` is false).
  * Endpoint paths are proposals: align them with the Express routes in `controllers/` when they exist.
  * The Express API returns camelCase JSON; MongoDB snake_case is mapped on the server.
  */
 const base = environment.apiBaseUrl;
-
-
 
 @Injectable()
 export class HttpAuthApi extends AuthApi {
@@ -41,9 +37,7 @@ export class HttpAuthApi extends AuthApi {
     return this.http.post<AuthResult>(`${base}/auth/login`, { username, password });
   }
   override postRegistration(data: RegistrationData): Observable<{ userId: string; sentTo: string }> {
-
     return this.http.post<{ userId: string; sentTo: string }>(`${base}/auth/register`, data);
-
   }
   override postVerification(userId: string, code: string): Observable<AuthResult> {
     return this.http.post<AuthResult>(`${base}/auth/verify`, { userId, code });
@@ -72,11 +66,9 @@ export class HttpRequestApi extends RequestApi {
     return this.http.get<ServiceRequest>(`${base}/requests/${id}`);
   }
   override postRequest(data: NewRequestData): Observable<ServiceRequest> {
-
     return this.http.post<ServiceRequest>(`${base}/requests`, data);
   }
   override postComment(id: string, text: string): Observable<ServiceRequest> {
-
     return this.http.post<ServiceRequest>(`${base}/requests/${id}/comments`, { text });
   }
   override postNote(id: string, details: string, applyToGroup: boolean): Observable<ServiceRequest> {
@@ -125,9 +117,7 @@ export class HttpUserApi extends UserApi {
     return this.http.get<User[]>(`${base}/users/assignable`, { params });
   }
   override updateApproval(userId: string, decision: ApprovalDecision): Observable<User> {
-
     return this.http.put<User>(`${base}/users/${userId}/approval`, decision);
-
   }
   override updateProfile(firstName: string, lastName: string): Observable<User> {
     return this.http.put<User>(`${base}/me/profile`, { firstName, lastName });
