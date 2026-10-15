@@ -22,8 +22,7 @@ import {
   User,
 } from '../../models';
 import { AuthApi, ReportApi, RequestApi, UserApi } from '../contracts';
-import DBWriteUpdate from "../../../../../../models/DatabaseWriteUpdate";
-import DBRead from "../../../../../../models/DatabaseRead";
+
 
 
 /**
@@ -32,8 +31,7 @@ import DBRead from "../../../../../../models/DatabaseRead";
  * The Express API returns camelCase JSON; MongoDB snake_case is mapped on the server.
  */
 const base = environment.apiBaseUrl;
-const DBWriteUpdateClass = new DBWriteUpdate();
-const DBReadClass = new DBRead();
+
 
 
 @Injectable()
@@ -43,7 +41,7 @@ export class HttpAuthApi extends AuthApi {
     return this.http.post<AuthResult>(`${base}/auth/login`, { username, password });
   }
   override postRegistration(data: RegistrationData): Observable<{ userId: string; sentTo: string }> {
-    DBWriteUpdateClass.createUser(data);
+
     return this.http.post<{ userId: string; sentTo: string }>(`${base}/auth/register`, data);
 
   }
@@ -127,7 +125,7 @@ export class HttpUserApi extends UserApi {
     return this.http.get<User[]>(`${base}/users/assignable`, { params });
   }
   override updateApproval(userId: string, decision: ApprovalDecision): Observable<User> {
-    DBWriteUpdateClass.updateUser(userId,decision);
+
     return this.http.put<User>(`${base}/users/${userId}/approval`, decision);
 
   }
