@@ -12,7 +12,8 @@ const requestGroupSchema = new Schema({
         details: { type: String, required: true },
         category: { type: String, required: true },
         user_id: { type: Schema.Types.ObjectId, required: true },
-        date: { type: Date, required: true }
+        date: { type: Date, required: true },
+        visibility: { type: String, enum: ['INTERNAL', 'PUBLIC'], default: 'INTERNAL' }
     }]
 }, {
     collection: 'requestGroup',

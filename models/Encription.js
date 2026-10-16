@@ -1,5 +1,5 @@
 // Encryption keys configuration (Replace with real values pulled from a secure secrets vault)
-require('dotenv').config();
+require('dotenv').config({ quiet: true });
 const crypto = require('crypto');
 
 const ENCRYPTION_KEY = Buffer.from(process.env.ENCRYPTION_KEY, "hex");

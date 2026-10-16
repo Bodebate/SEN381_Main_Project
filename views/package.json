@@ -4,11 +4,13 @@
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
+    "start:live": "ng serve -c live",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
     "lint": "ng lint",
-    "e2e": "playwright test"
+    "e2e": "playwright test",
+    "e2e:live": "playwright test -c playwright.live.config.ts"
   },
   "private": true,
   "packageManager": "npm@10.9.8",

@@ -20,5 +20,7 @@ views/dist/
 /node_modules/
 views/playwright-report/
 views/test-results/
+views/playwright-report-live/
+views/test-results-live/
 .DS_Store
 node_modules/.package-lock.json

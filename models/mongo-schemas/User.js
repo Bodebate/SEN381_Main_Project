@@ -21,7 +21,14 @@ const userSchema = new Schema({
         required: true,
         index: true
     },
+    approved_by: { type: Schema.Types.ObjectId, ref: 'User', default: null },
+    approved_at: { type: Date, default: null },
+    decision_note: { type: String, default: null, trim: true },
     verified: { type: Boolean, default: false, required: true },
+    verification_code_hash: { type: String, default: null },
+    verification_expires: { type: Date, default: null },
+    verification_attempts: { type: Number, default: 0 },
+    pending_phone: { type: String, default: null },   // encrypted, waits for a code (/me/contact)
     notification_preference: {
         type: String,
         enum: ['EMAIL', 'SMS'],

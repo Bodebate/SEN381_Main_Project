@@ -95,3 +95,17 @@ describe('updateRequest status changes (FR-STF-005)', () => {
             .rejects.toThrow('Unauthorized');
     });
 });
+
+describe('updateUser ownership', () => {
+    it('refuses when a low-clearance actor edits another user', async () => {
+        // Arrange
+        const writer = new DBUpdateWrite();
+        const actor = { user_id: '64b000000000000000000001', clearance: 0 };
+        jest.spyOn(console, 'error').mockImplementation(() => {});
+
+        // Act / Assert
+        await expect(writer.updateUser('64b000000000000000000002', { email: 'x@y.com' }, actor))
+            .rejects.toThrow(/only update your own account/);
+        console.error.mockRestore();
+    });
+});

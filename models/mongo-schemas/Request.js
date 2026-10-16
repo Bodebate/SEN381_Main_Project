@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const { Schema } = mongoose;
+const STATUSES = ['Submitted', 'Assigned', 'In progress', 'Resolved', 'Closed'];
 
 const requestSchema = new Schema({
     tracking_id: {
@@ -19,22 +20,26 @@ const requestSchema = new Schema({
     due_date: { type: Date, default: null }, // Top-level due date field
     assigned_to: { type: Schema.Types.ObjectId, ref: 'User', default: null, index: { sparse: true } },
     address: { type: String, required: true },
+    contact_email: { type: String, default: null, trim: true },
+    contact_phone: { type: String, default: null, trim: true },
+    resolution_outcome: { type: String, enum: ['FIXED', 'REJECTED', 'DUPLICATE', null], default: null },
     active: { type: Boolean, required: true, default: true },
 
     // Five-step status flow (FR-STF-005)
     status: {
         type: String,
-        enum: ['SUBMITTED', 'ASSIGNED', 'IN PROGRESS', 'RESOLVED', 'CLOSED'],
-        default: 'SUBMITTED',
+        enum: STATUSES,
+        default: 'Submitted',
         required: true,
         index: true
     },
     status_history: [{
-        from: { type: String, enum: ['SUBMITTED', 'ASSIGNED', 'IN PROGRESS', 'RESOLVED', 'CLOSED', null], default: null },
-        to: { type: String, enum: ['SUBMITTED', 'ASSIGNED', 'IN PROGRESS', 'RESOLVED', 'CLOSED'], required: true },
+        from: { type: String, enum: [...STATUSES, null], default: null },
+        to: { type: String, enum: STATUSES, required: true },
         comment: { type: String, required: true },
         by: { type: Schema.Types.ObjectId, ref: 'User', required: true },
-        at: { type: Date, required: true, default: Date.now }
+        at: { type: Date, required: true, default: Date.now },
+        notify_requester: { type: Boolean, default: false }
     }],
 
     notes: [{
@@ -42,7 +47,8 @@ const requestSchema = new Schema({
         details: { type: String, required: true },
         category: { type: String, required: true },
         user_id: { type: Schema.Types.ObjectId, required: true, ref: 'User' },
-        date: { type: Date, required: true, default: Date.now }
+        date: { type: Date, required: true, default: Date.now },
+        visibility: { type: String, enum: ['INTERNAL', 'PUBLIC'], default: 'INTERNAL' }
     }]
 }, {
     collection: 'request',

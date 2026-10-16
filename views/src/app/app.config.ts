@@ -11,7 +11,7 @@ export const appConfig: ApplicationConfig = {
     provideBrowserGlobalErrorListeners(),
     provideRouter(routes, withComponentInputBinding(), withInMemoryScrolling({ scrollPositionRestoration: 'top' })),
     provideHttpClient(withInterceptors([authInterceptor])),
-    // Mock or real API, decided by environment.useMockApi.
+    // Mock or real API per area, decided by environment.mockApis.
     ...provideApi(),
     // Restore the signed-in user (page refresh) before the first route guard runs.
     provideAppInitializer(() => inject(SessionService).restore()),
