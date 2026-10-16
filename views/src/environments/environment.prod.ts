@@ -1,6 +1,6 @@
-/** Production settings (used by `ng build`). Switch useMockApi to false once the Express API is live. */
+/** Production settings (used by `ng build`). Switch each area to false once its Express routes are live. */
 export const environment = {
   production: true,
-  useMockApi: true,
+  mockApis: { auth: true, requests: true, users: true, reports: true },
   apiBaseUrl: '/api',
 };

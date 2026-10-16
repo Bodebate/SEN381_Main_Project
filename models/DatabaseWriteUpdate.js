@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcrypt');
+const crypto = require('crypto');
 
 const constEncryption = require('./Encription');
 
@@ -34,6 +35,33 @@ const toClientUser = u => u && mapUserToClient({
     phone: decryptText(u.phone),
     whatsapp: decryptText(u.whatsapp),
 });
+
+// One-time codes for registration and phone changes (10 minutes, 5 attempts)
+const CODE_TTL_MS = 10 * 60 * 1000;
+const CLEAR_CODE = { verification_code_hash: 1, verification_expires: 1, verification_attempts: 1 };
+
+async function newCodeFields() {
+    const code = String(crypto.randomInt(100000, 1000000));
+    return {
+        code,
+        fields: {
+            verification_code_hash: await bcrypt.hash(code, 10),
+            verification_expires: new Date(Date.now() + CODE_TTL_MS),
+            verification_attempts: 0,
+        },
+    };
+}
+
+async function checkCode(user, code) {
+    if (!user.verification_code_hash || !user.verification_expires || user.verification_expires < new Date())
+        throw new Error('Validation Error: The code has expired. Request a new one.');
+    if ((user.verification_attempts || 0) >= 5)
+        throw new Error('Validation Error: Too many attempts. Request a new code.');
+    if (!(await bcrypt.compare(String(code || ''), user.verification_code_hash))) {
+        await constUser.updateOne({ _id: user._id }, { $inc: { verification_attempts: 1 } });
+        throw new Error('Validation Error: Incorrect code.');
+    }
+}
 
 /**
  * Validates and normalizes a phone number to E.164 format.
@@ -194,23 +222,29 @@ class DBUpdateWrite {
 
     async updateUser(userId, updateData, actor) {
         try {
-            const allowedUpdates = {};
+            const isSelf = actor && actor.user_id && String(actor.user_id) === String(userId);
+            const isAdmin = actor && Number(actor.clearance) >= 4;
+            if (!isSelf && !isAdmin) {
+                throw new Error('Unauthorized: You can only update your own account.');
+            }
 
+            const allowedUpdates = {};
+            const unsetFields = {};
+
+            // Fields a user may change on their own account
             const firstName = updateData.firstName || updateData.first_name;
             const lastName = updateData.lastName || updateData.last_name;
+            const notifyVia = updateData.notificationPreference || updateData.notification_preference;
 
             if (updateData.password !== undefined) allowedUpdates.password = updateData.password;
             if (firstName !== undefined) allowedUpdates.first_name = firstName;
             if (lastName !== undefined) allowedUpdates.last_name = lastName;
-            if (updateData.email !== undefined) allowedUpdates.email = updateData.email;
-            if (updateData.workCategories !== undefined) allowedUpdates.work_categories = updateData.workCategories;
-            if (updateData.work_categories !== undefined) allowedUpdates.work_categories = updateData.work_categories;
-            if (updateData.notificationPreference !== undefined) allowedUpdates.notification_preference = updateData.notificationPreference;
-            if (updateData.notification_preference !== undefined) allowedUpdates.notification_preference = updateData.notification_preference;
-            if (updateData.department !== undefined) allowedUpdates.department = updateData.department;
-            if (updateData.isActive !== undefined) allowedUpdates.is_active = updateData.isActive;
-            if (updateData.is_active !== undefined) allowedUpdates.is_active = updateData.is_active;
-
+            if (notifyVia !== undefined) allowedUpdates.notification_preference = notifyVia;
+            if (updateData.email !== undefined) {
+                // email is unique + sparse: remove the field rather than storing null
+                if (updateData.email) allowedUpdates.email = updateData.email;
+                else unsetFields.email = 1;
+            }
             if (updateData.phone !== undefined) {
                 allowedUpdates.phone = updateData.phone ? encryptText(normalizeToE164(updateData.phone)) : null;
             }
@@ -218,21 +252,31 @@ class DBUpdateWrite {
                 allowedUpdates.whatsapp = updateData.whatsapp ? encryptText(normalizeToE164(updateData.whatsapp)) : null;
             }
 
+            // Fields only clearance 4+ may change
             const approvalStatus = updateData.approvalStatus || updateData.approval_status;
-            const isPrivilegedUpdate =
-                updateData.role !== undefined ||
-                approvalStatus !== undefined ||
-                updateData.clearance !== undefined ||
-                updateData.verified !== undefined;
+            const workCategories = updateData.workCategories ?? updateData.work_categories;
+            const isActive = updateData.isActive ?? updateData.is_active;
+            const isPrivilegedUpdate = [
+                updateData.role, approvalStatus, updateData.clearance, updateData.verified,
+                workCategories, updateData.department, isActive, updateData.decisionNote,
+            ].some(v => v !== undefined);
 
             if (isPrivilegedUpdate) {
-                if (!actor || actor.clearance < 4) {
-                    throw new Error("Unauthorized: Administrative clearance (>= 4) is required to modify user roles, approval statuses, or clearance tiers.");
+                if (!isAdmin) {
+                    throw new Error('Unauthorized: Administrative clearance (>= 4) is required to modify roles, approval, clearance, categories, department or account status.');
                 }
                 if (updateData.role !== undefined) allowedUpdates.role = updateData.role;
-                if (approvalStatus !== undefined) allowedUpdates.approval_status = approvalStatus;
                 if (updateData.clearance !== undefined) allowedUpdates.clearance = Number(updateData.clearance);
                 if (updateData.verified !== undefined) allowedUpdates.verified = Boolean(updateData.verified);
+                if (workCategories !== undefined) allowedUpdates.work_categories = workCategories;
+                if (updateData.department !== undefined) allowedUpdates.department = updateData.department;
+                if (isActive !== undefined) allowedUpdates.is_active = Boolean(isActive);
+                if (updateData.decisionNote !== undefined) allowedUpdates.decision_note = updateData.decisionNote;
+                if (approvalStatus !== undefined) {
+                    allowedUpdates.approval_status = approvalStatus;
+                    allowedUpdates.approved_by = actor.user_id || null;
+                    allowedUpdates.approved_at = new Date();
+                }
             }
 
             const securedUpdates = { ...allowedUpdates };
@@ -246,24 +290,73 @@ class DBUpdateWrite {
             const oldUser = await constUser.findById(userId).lean();
             if (!oldUser) throw new Error(`User with ID ${userId} not found.`);
 
-            // FR-STF-005: Pass runValidators: true
-            const updatedUser = await constUser.findByIdAndUpdate(userId, securedUpdates, { new: true, runValidators: true }).lean();
+            const change = { $set: securedUpdates };
+            if (Object.keys(unsetFields).length) change.$unset = unsetFields;
+            const updatedUser = await constUser.findByIdAndUpdate(userId, change, { returnDocument: 'after', runValidators: true }).lean();
 
             await this.createAuditLog({
-                eventType: "SECURITY_CHANGE",
-                severity: "WARNING",
+                eventType: 'SECURITY_CHANGE',
+                severity: 'WARNING',
                 actor,
-                targetEntity: { entity_type: "USER", entity_id: userId },
-                action: "User account properties updated",
+                targetEntity: { entity_type: 'USER', entity_id: userId },
+                action: 'User account properties updated',
                 oldFields: oldUser,
-                newFields: updatedUser
+                newFields: updatedUser,
             });
 
             return toClientUser(updatedUser);
         } catch (err) {
-            console.error("Error updating user:", err);
+            console.error('Error updating user:', err);
             throw err;
         }
+    }
+
+    // One-time code for registration (POST /auth/register, /auth/resend-code)
+    async setVerificationCode(userId) {
+        const { code, fields } = await newCodeFields();
+        const user = await constUser.findByIdAndUpdate(userId, fields);
+        if (!user) throw new Error(`User with ID ${userId} not found.`);
+        return code;
+    }
+
+    // POST /auth/verify
+    async verifyUserCode(userId, code) {
+        if (!mongoose.isValidObjectId(userId)) throw new Error('Validation Error: Invalid user ID.');
+        const user = await constUser.findById(userId).lean();
+        if (!user) throw new Error(`User with ID ${userId} not found.`);
+        if (user.verified) return toClientUser(user);
+        await checkCode(user, code);
+        const updated = await constUser.findByIdAndUpdate(
+            userId, { verified: true, $unset: CLEAR_CODE }, { returnDocument: 'after' }).lean();
+        return toClientUser(updated);
+    }
+
+    // PUT /me/contact, first call with a new phone number
+    async startPhoneChange(userId, phone) {
+        const normalised = normalizeToE164(phone);
+        const { code, fields } = await newCodeFields();
+        await constUser.findByIdAndUpdate(userId, { ...fields, pending_phone: encryptText(normalised) });
+        return { code, phone: normalised };
+    }
+
+    // PUT /me/contact, second call with the code
+    async confirmPhoneChange(userId, code, actor) {
+        const user = await constUser.findById(userId).lean();
+        if (!user || !user.pending_phone) {
+            throw new Error('Validation Error: No phone change is waiting for a code.');
+        }
+        await checkCode(user, code);
+        const updated = await constUser.findByIdAndUpdate(userId, {
+            phone: user.pending_phone,
+            $unset: { ...CLEAR_CODE, pending_phone: 1 },
+        }, { returnDocument: 'after' }).lean();
+        await this.createAuditLog({
+            eventType: 'SECURITY_CHANGE', severity: 'WARNING', actor,
+            targetEntity: { entity_type: 'USER', entity_id: userId },
+            action: 'Phone number changed after code check',
+            oldFields: user, newFields: updated,
+        });
+        return toClientUser(updated);
     }
 
     // =========================================================================
@@ -293,6 +386,8 @@ class DBUpdateWrite {
                 due_date: null,
                 assigned_to: null,
                 address: sanitizedData.address,
+                contact_email: sanitizedData.contact_email ?? null,
+                contact_phone: sanitizedData.contact_phone ?? null,
                 active: sanitizedData.active !== undefined ? sanitizedData.active : true,
                 status: 'Submitted',
                 status_history: [{
@@ -392,7 +487,7 @@ class DBUpdateWrite {
             //         {
             //             $set: allowedUpdates,$push: { status_history: historyEntry }
             //         },
-            //         { new: true, runValidators: true }
+            //         { returnDocument: 'after', runValidators: true }
             //     ).lean();
             //
             //     await this.createAuditLog({
@@ -433,13 +528,17 @@ class DBUpdateWrite {
                 }
 
                 allowedUpdates.status = newStatus;
+                if (newStatus === 'Resolved' && sanitizedUpdates.resolution_outcome) {
+                    allowedUpdates.resolution_outcome = sanitizedUpdates.resolution_outcome;
+                }
 
                 const historyEntry = {
                     from: oldRequest.status,
                     to: newStatus,
                     comment: comment.trim(),
                     by: actorId,
-                    at: new Date()
+                    at: new Date(),
+                    notify_requester: Boolean(updateData.notifyRequester)
                 };
 
                 // FR-STF-005: Pass runValidators: true
@@ -449,7 +548,7 @@ class DBUpdateWrite {
                         $set: allowedUpdates,
                         $push: { status_history: historyEntry }
                     },
-                    { new: true, runValidators: true }
+                    { returnDocument: 'after', runValidators: true }
                 ).lean();
 
                 await this.createAuditLog({
@@ -466,7 +565,7 @@ class DBUpdateWrite {
             }
 
             // FR-STF-005: Pass runValidators: true
-            const updatedRequest = await constRequest.findByIdAndUpdate(requestId, allowedUpdates, { new: true, runValidators: true }).lean();
+            const updatedRequest = await constRequest.findByIdAndUpdate(requestId, allowedUpdates, { returnDocument: 'after', runValidators: true }).lean();
 
             let eventType = "REQUEST_LIFECYCLE";
             if (updateData.notes) eventType = "NOTE_CREATED";
@@ -488,13 +587,14 @@ class DBUpdateWrite {
         }
     }
 
-    async addNoteToRequest(requestId, { details, category, userId, user_id }, actor) {
+    async addNoteToRequest(requestId, { details, category, userId, user_id, visibility }, actor) {
         try {
             const resolvedUserId = user_id || userId;
             const newNote = {
                 note_id: new mongoose.Types.ObjectId(),
                 details: details,
                 category: category,
+                visibility: visibility || 'INTERNAL',
                 user_id: new mongoose.Types.ObjectId(resolvedUserId),
                 date: new Date()
             };
@@ -508,7 +608,7 @@ class DBUpdateWrite {
             const updatedRequest = await constRequest.findByIdAndUpdate(
                 requestId,
                 { $push: { notes: newNote } },
-                { new: true, runValidators: true }
+                { returnDocument: 'after', runValidators: true }
             ).lean();
 
             await this.createAuditLog({
@@ -531,13 +631,14 @@ class DBUpdateWrite {
     // =========================================================================
     // 3. REQUEST GROUPS WRITES & UPDATES
     // =========================================================================
-    async addNoteToRequestGroup(groupId, { details, category, userId, user_id }, actor) {
+    async addNoteToRequestGroup(groupId, { details, category, userId, user_id, visibility }, actor) {
         try {
             const resolvedUserId = user_id || userId;
             const newNote = {
                 note_id: new mongoose.Types.ObjectId(),
                 details: details,
                 category: category,
+                visibility: visibility || 'INTERNAL',
                 user_id: new mongoose.Types.ObjectId(resolvedUserId),
                 date: new Date()
             };
@@ -551,7 +652,7 @@ class DBUpdateWrite {
             const updatedGroup = await constRequestGroups.findByIdAndUpdate(
                 groupId,
                 { $push: { notes: newNote } },
-                { new: true, runValidators: true }
+                { returnDocument: 'after', runValidators: true }
             ).lean();
 
             await this.createAuditLog({
@@ -616,7 +717,7 @@ class DBUpdateWrite {
             if (!oldGroup) throw new Error(`Request Group with ID ${groupId} not found.`);
 
             // FR-STF-005: Pass runValidators: true
-            const updatedGroup = await constRequestGroups.findByIdAndUpdate(groupId, allowedUpdates, { new: true, runValidators: true }).lean();
+            const updatedGroup = await constRequestGroups.findByIdAndUpdate(groupId, allowedUpdates, { returnDocument: 'after', runValidators: true }).lean();
 
             await this.createAuditLog({
                 eventType: updateData.notes ? "NOTE_CREATED" : "GROUP_ASSIGNED",
@@ -694,7 +795,7 @@ class DBUpdateWrite {
             const updatedAuth = await constUserAuthorization.findOneAndUpdate(
                 { clearance: Number(clearanceLevel) },
                 allowedUpdates,
-                { new: true, runValidators: true }
+                { returnDocument: 'after', runValidators: true }
             ).lean();
 
             await this.createAuditLog({
@@ -876,5 +977,8 @@ class DBUpdateWrite {
         }
     }
 }
+
+// Exposed so /me/contact can compare a typed number with the stored one
+DBUpdateWrite.normalizeToE164 = normalizeToE164;
 
 module.exports = DBUpdateWrite;

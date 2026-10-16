@@ -1,110 +1,150 @@
-# CivicConnect front end (Angular 22)
+# CivicConnect
 
-Clickable front end for the CivicConnect request tracker, built from agreed-upon wireframes.
-It runs entirely in the browser on **demo data** until the Express API is ready.
+Request tracker for SEN381: an Angular 22 front end (`views/`) and an Express 5 + MongoDB API
+(project root). The front end can run on **built-in demo data** or against the **real API**,
+chosen per area in the environment files.
+
+## First-time setup
+
+1. Install dependencies: `npm install` in the project root, then `npm install` in `views/`.
+2. Copy `.env.example` to `.env` and fill it in (one `KEY=value` per line, no trailing `;`):
+
+| Key | What it is |
+| --- | --- |
+| `MONGODB_URI` | MongoDB connection string (Atlas or local) |
+| `ENCRYPTION_KEY`, `FIXED_IV` | Keys for encrypted user fields (names, phone numbers); ask the team for the shared values |
+| `JWT_Secret` | Long random string that signs sign-in tokens: `node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"` |
+| `PORT` | API port, default `3000` |
+| `CORS_ORIGIN` | Front-end address allowed to call the API, default `http://localhost:4200` |
+| `TWILIO_*` | Twilio account details for SMS and email |
+| `NOTIFY_MODE` | `console` prints SMS/email messages in the API terminal instead of sending them (use this in development) |
+| `SEED_ADMIN_EMAIL`, `SEED_ADMIN_PASSWORD` | The first admin account, created by `npm run seed` (password 8+ characters) |
+
+3. Create the first admin, once per database: `npm run seed`. To reset that admin's password and
+   email to the values in `.env`: `npm run seed -- --reset-password`.
+
+`.env` is never committed. Share its values privately, not in GitHub, chat screenshots or the README.
 
 ## Run it
 
-From the project root:
-
-```bash
-npm run web          # = npm --prefix views start  → http://localhost:4200
-npm run web:build    # = npm --prefix views run build → views/dist/
-```
-
-Or from `views/`: `npm install` (first time), then:
-
-| Command | What it does |
+| Goal | Commands (project root) |
 | --- | --- |
-| `npm start` | Dev server on http://localhost:4200 |
-| `npm run build` | Production build into `views/dist/` |
-| `npm run lint` | ESLint static analysis (angular-eslint) |
-| `npm test` | Unit tests (Vitest); add `-- --watch=false` for a single run |
-| `npm run e2e` | Browser (E2E) tests with Playwright; starts the dev server itself |
+| Front end on demo data only | `npm run web` → http://localhost:4200 |
+| Front end on the real API | `npm start` (API on http://localhost:3000/api), then in a second terminal `npm run web:live` |
+| Throwaway API with demo accounts | `npm run api:test`: API on port 3100 with an in-memory database (data is lost on stop) |
+| Production build | `npm run web:build` → `views/dist/` |
 
-### Demo accounts (password `demo` for all)
+`npm run web:live` uses the `live` Angular configuration (`environment.live.ts`, all areas on the
+real API), so nobody needs to edit `environment.ts` to test against the API. Keep `environment.ts`
+on demo data: CI's demo-data E2E tests rely on it.
 
-| Username | What you see |
-| --- | --- |
-| `requester` | Requester: my requests, new request, request status |
-| `staff` | Staff, Water department, clearance 3: queue, triage, request detail |
-| `staff3` | Staff, Roads, clearance 2 (sees different requests) |
-| `manager` | Manager: dashboard, track/group/export, account approvals, plus staff pages |
-| `admin` | Admin: as manager, and can grant Manager/Admin roles |
-| `pending` | Verified but waiting for approval → `/pending` |
-| `unverified` | Registered but never entered the sign-up code → `/register/verify` |
-| `declined` | Application declined → sign-in error |
+### Accounts
 
-Registering a new account works too; any 6-digit code verifies it. Demo data resets on page refresh.
+- **Demo data** (`npm run web`) and **test API** (`npm run api:test`, `npm run e2e:live`): password
+  `demo`. Demo data has `requester`, `staff`, `staff3`, `manager`, `admin`, `pending`, `unverified`
+  and `declined`; the test API has `requester`, `staff`, `manager` and `admin`.
+- **Real API** (`npm start`): `admin` with your `SEED_ADMIN_PASSWORD`. New accounts register on the
+  sign-up page; with `NOTIFY_MODE=console` the 6-digit code appears in the API terminal. An admin or
+  manager then approves them on the approvals page.
+
+## API
+
+`app.js` mounts these route groups under `/api`; every route except login, registration and the
+health check needs a `Bearer` token:
+
+| Path | Who | What |
+| --- | --- | --- |
+| `/health` | anyone | `{ "ok": true }` |
+| `/auth` | anyone / signed in | login, register, verify, resend-code, me, logout |
+| `/requests` | approved users by role | list (`?mine=true`), view, create, comments, notes, triage, assignee, due date, category, status |
+| `/request-groups` | staff, manager, admin | list, create |
+| `/users` | manager, admin (directory: everyone) | list, directory, assignable staff, approval decisions |
+| `/me` | approved users | profile, contact details (new phone number confirmed by SMS code), password |
+| `/reports` | manager, admin | dashboard, CSV export |
+| `/categories`, `/departments` | approved users | lookup lists from `config/lookups.js` |
+
+Access rules are enforced on the server (NFR-SEC-001): `middleware/authenticate.js` checks the
+token, approval and role, and the DB layer (`models/DatabaseRead.js`, `models/DatabaseWriteUpdate.js`)
+filters what each user may see or change. The Angular guards only shape what the user sees.
 
 ## Testing
 
 All tests follow the **AAA pattern** (Arrange, Act, Assert), with each step marked by a comment.
 
-| Level | Tool | Where | What it covers |
-| --- | --- | --- | --- |
-| Static analysis | ESLint (angular-eslint) | `eslint.config.js` | Code quality and Angular template rules |
-| Unit | Vitest via `ng test` | `src/**/*.spec.ts` | Status transitions, overdue rule, visibility, resolve/close and approval rules, route guards |
-| E2E | Playwright | `e2e/*.spec.ts` | E2E-01 submit and track a request (FR-REQ-001, FR-REQ-002); E2E-02 requester blocked from staff pages; E2E-03 signed-out visitor sent to sign in (NFR-SEC-001) |
+| Level | Tool | Command | Where | What it covers |
+| --- | --- | --- | --- | --- |
+| Back-end unit + API | Jest + Supertest | `npm test` (root) | `tests/*.test.js` | DB rules and mappers; every API area: sign-in, registration, roles, approvals, own account, requests, groups, reports. The DB layer is stubbed, so no database is needed |
+| Static analysis | ESLint | `npm run lint` (views) | `views/eslint.config.js` | Code quality and Angular template rules |
+| Front-end unit | Vitest via `ng test` | `npx ng test --watch=false` (views) | `views/src/**/*.spec.ts` | Status rules, visibility, approval rules, route guards |
+| E2E, demo data | Playwright | `npm run e2e` (views) | `views/e2e/*.spec.ts` | E2E-01 submit and track a request; E2E-02 requester blocked from staff pages; E2E-03 signed-out visitor sent to sign in |
+| E2E, real API | Playwright | `npm run e2e:live` (views) | same specs | The same journeys against the real Express API and an in-memory MongoDB |
 
-First-time E2E setup: `npx playwright install chromium`. The E2E tests run against `ng serve` and the
-built-in demo data, so they need no back end. Their TypeScript settings are in `tsconfig.e2e.json`
-(Node types for the Playwright files only).
+First-time E2E setup: `npx playwright install chromium` in `views/`. `npm run e2e:live` starts its
+own test API (port 3100) and app (port 4300), so it never touches Atlas or your running servers. The
+first run downloads a MongoDB binary, which takes a minute.
 
 ## CI pipeline
 
-`.github/workflows/ci.yml` runs on every pull request and push to
-`implementation/baseline`, `development` and `main`:
+`.github/workflows/ci.yml` runs on every pull request and push to `implemenation/baseline`,
+`development` and `main`:
 
 | Check | Steps |
 | --- | --- |
+| Back end - unit tests | `npm ci`, Jest + Supertest (`npm test`) |
 | Front end - lint, unit tests, build | `npm ci`, ESLint, Vitest, production build |
-| Front end - E2E tests | Playwright against `ng serve`; the HTML report is kept as a run artifact |
+| Front end - E2E tests | Playwright against `ng serve` on demo data; HTML report kept as an artifact |
+| E2E tests against the real API | Playwright against the test API (in-memory MongoDB) and `ng serve -c e2e`; report kept as an artifact |
 | Front end - dependency audit | `npm audit --omit=dev --audit-level=high` |
 
-GitHub's CodeQL scanning and Dependabot (`.github/dependabot.yml`) add code and dependency security checks.
-A failing check blocks the merge once the branch ruleset requires these checks. Back-end, database and
-notification tests will be added to the same workflow when that code exists.
+GitHub's CodeQL scanning and Dependabot (`.github/dependabot.yml`) add code and dependency security
+checks. A failing check blocks the merge once the branch ruleset requires these checks.
 
 ## How it fits together
 
 ```
-src/app/
+server.js            loads .env, connects to MongoDB, starts the API
+app.js               Express app: CORS, JSON, routes, JSON 404, error handler
+config/              db.js (connection), lookups.js (categories and departments)
+middleware/          authenticate.js (JWT → req.actor, requireApproved, requireRole), errorHandle.js
+routes/              one file per API area: URL → middleware → controller
+controllers/         read the request, call the DB layer, send JSON
+models/
+  mongo-schemas/     Mongoose schemas (User, Request, Request-Group, Log, User-Authorization)
+  DatabaseRead.js    reads with access filtering
+  DatabaseWriteUpdate.js  writes, status rules, audit log
+  utils/Mappers.js   snake_case DB documents ↔ camelCase Angular models
+services/            twilio.js (SMS, WhatsApp, email; NOTIFY_MODE=console for dev), mask.js
+scripts/             seed-admin.js (npm run seed), start-test-api.js (npm run api:test, live E2E)
+tests/               Jest + Supertest tests and shared helpers
+views/src/app/
   core/
-    models/        TypeScript types that mirror the ERD (camelCase here, snake_case in MongoDB)
-    domain/        Business rules: status transitions, overdue, who can see/resolve/approve
+    models/          TypeScript types that mirror the API responses
+    domain/          Business rules: status transitions, overdue, who can see/resolve/approve
     api/
       contracts.ts       AuthApi, RequestApi, UserApi, ReportApi  ← pages depend only on these
-      api.providers.ts   THE switch: mock or HTTP, from environment.useMockApi
+      api.providers.ts   THE switch: mock or HTTP per area, from environment.mockApis
       mock/              In-browser demo implementation + seed data
-      http/              HttpClient implementation for the Express API (endpoint paths are proposals)
-    auth/          SessionService, route guards, auth interceptor (Bearer token)
-    data/          LookupService (categories, departments, display names)
-  layouts/         PublicLayout (signed-out pages), ShellLayout (header + sidebar)
-  shared/          Status chip, status stepper, activity log, KPI tile, bar list, empty state
-  features/
-    auth/          login, register, verify (2FA once, at sign-up), pending approval
-    requester/     my requests, new request, request status
-    staff/         request queue, request detail (triage, ownership, due date, status change)
-    manager/       dashboard, track/group/export, account approvals
-    account/       account settings (all roles)
-    errors/        403 access denied, 404 not found
-e2e/               Playwright E2E tests (helpers.ts + one spec file per journey)
+      http/              HttpClient implementation for the Express API
+    auth/            SessionService, route guards, auth interceptor (Bearer token)
+    data/            LookupService (categories, departments, display names)
+  layouts/, shared/, features/   pages and components (auth, requester, staff, manager, account, errors)
+views/src/environments/
+  environment.ts       demo data (default, used by CI's demo E2E tests)
+  environment.live.ts  real API on port 3000 (npm run web:live)
+  environment.e2e.ts   test API on port 3100 (npm run e2e:live)
 ```
 
-### Swapping in the real backend
+### Mock or real API
 
-1. Implement the Express routes (paths are listed in `core/api/http/http-apis.ts`; rename freely).
-2. Set `useMockApi: false` and `apiBaseUrl` in `src/environments/environment.ts` (and `.prod.ts`).
-3. That's it: pages, guards and the session use the contracts, not the implementation.
-
-The real API **must enforce** the same rules server-side (NFR-SEC-001). The UI guards and
-`core/domain/request-rules.ts` only shape what the user sees.
+`environment.mockApis` has one flag per area (`auth`, `requests`, `users`, `reports`). Switch them
+**together**: the demo data only knows who is signed in when the demo login ran, so real sign-in with
+demo requests shows "Your session has expired". Use `npm run web:live` instead of editing the flags.
 
 ## Notes
 
 - Styling is plain SCSS (`src/styles.scss`) matching the wireframes, plus Angular CDK for the account menu.
 - Fonts load from Google Fonts. Production builds inline them, so `ng build` needs internet access.
 - Live status on the requester page polls every 15 s; replace with WebSocket/SSE later if needed.
-- `environment.prod.ts` is not used yet: `angular.json` has no production `fileReplacements`. Both
-  environment files use demo data today; add the replacement when switching to the real API.
+- `environment.prod.ts` is not used yet: `angular.json` has no production `fileReplacements`.
+- Some request fields (`assignedBy`, `dueSetBy`, `categorisedBy`, a group's department) are returned as
+  `null` because the database does not store them yet.

@@ -80,6 +80,36 @@ jobs:
           path: views/playwright-report/
           retention-days: 30
 
+  e2e-live:
+    name: E2E tests against the real API
+    needs: [backend, frontend]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            views/package-lock.json
+      - name: Install back-end dependencies
+        working-directory: .
+        run: npm ci
+      - name: Install front-end dependencies
+        run: npm ci
+      - name: Install the Playwright browser
+        run: npx playwright install --with-deps chromium
+      - name: E2E tests (Playwright starts the test API with an in-memory MongoDB, and ng serve -c e2e)
+        run: npm run e2e:live
+      - name: Keep the live E2E report as CI evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-live
+          path: views/playwright-report-live/
+          retention-days: 30
+
   audit:
     name: Front end - dependency audit
     runs-on: ubuntu-latest

@@ -1,12 +1,15 @@
 module.exports = (err, req, res, next) => {
-    const msg = err.message || 'Server error';
-    let status = err.status; // the DB layer already sets 401 in some places
+    let status = err.status;
     if (!status) {
-        if (/^(Invalid|Validation)/i.test(msg)) status = 400;
-        else if (/^Unauthorized/i.test(msg)) status = 403;
-        else if (/not found/i.test(msg)) status = 404;
+        if (err.code === 11000) status = 409;                                   // duplicate username or email
+        else if (err.name === 'ValidationError' || err.name === 'CastError') status = 400;
+        else if (/^(Validation Error|Invalid|Bad Request)/.test(err.message)) status = 400;
+        else if (/^Unauthorized/.test(err.message)) status = 403;
+        else if (/not found/i.test(err.message)) status = 404;
         else status = 500;
     }
     if (status === 500) console.error(err);
-    res.status(status).json({ message: status === 500 ? 'Server error' : msg });
+    const message = status === 500 ? 'Something went wrong'
+        : status === 409 ? 'That username or email is already in use' : err.message;
+    res.status(status).json({ message });
 };

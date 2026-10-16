@@ -22,8 +22,8 @@ import {
 /**
  * API contracts. Pages and services depend ONLY on these abstract classes.
  * `api.providers.ts` binds each one to either the mock or the HTTP implementation,
- * chosen by `environment.useMockApi`. Swapping to the real Express API means filling in
- * the `Http*Api` classes and setting `useMockApi: false`; no page changes are needed.
+ * chosen per area by `environment.mockApis`. Swapping an area to the real Express API means
+ * setting it to false there; no page changes are needed.
  */
 
 export abstract class AuthApi {

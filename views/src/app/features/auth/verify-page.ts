@@ -49,7 +49,7 @@ export class VerifyPage {
   private readonly session = inject(SessionService);
   private readonly router = inject(Router);
 
-  protected readonly showDemo = environment.useMockApi;
+  protected readonly showDemo = environment.mockApis.auth;
   protected readonly busy = signal(false);
   protected readonly error = signal('');
   protected readonly notice = signal('');

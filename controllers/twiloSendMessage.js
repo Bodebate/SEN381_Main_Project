@@ -2,14 +2,14 @@ class TwiloSendMessage {
     twilio = require("twilio");
 
     
-    client = this.twilio(Process.env.TWILIO_accountSid, Process.env.TWILIO_authToken);
+    client = this.twilio(process.env.TWILIO_accountSid, process.env.TWILIO_authToken);
 
 
 
     sendSMS(message,phoneNumber){
         const constMessage = this.client.messages.create({
             body: message,
-            from: Process.env.TWILIO_phonenumber,
+            from: process.env.TWILIO_phonenumber,
             to: phoneNumber,
         });
 
@@ -21,10 +21,10 @@ class TwiloSendMessage {
             headers: {
                 "Content-Type": "application/json",
                 Authorization:
-                    "Basic " + Buffer.from(Process.env.TWILIO_accountSid + ":" + Process.env.TWILIO_authToken).toString("base64"),
+                    "Basic " + Buffer.from(process.env.TWILIO_accountSid + ":" + process.env.TWILIO_authToken).toString("base64"),
             },
             body: JSON.stringify({
-                from: {address: Process.env.TWILIO_email, name: "CivicConnect"},
+                from: {address: process.env.TWILIO_email, name: "CivicConnect"},
                 to: [{address: emailaddress}],
                 content: {
                     subject: subject,
@@ -37,7 +37,7 @@ class TwiloSendMessage {
     sendWhatsApp(message,whatapp){
         const constMessage =  this.client.messages.create({
             content: message,
-            from: Process.env.TWILIO_whatsapp,
+            from: process.env.TWILIO_whatsapp,
             to: "whatsapp:"+whatapp,
         });
     }

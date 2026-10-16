@@ -24,7 +24,7 @@ import {
 import { AuthApi, ReportApi, RequestApi, UserApi } from '../contracts';
 
 /**
- * HTTP implementations for the real Express API (used when `environment.useMockApi` is false).
+ * HTTP implementations for the real Express API (used for each area set to false in `environment.mockApis`).
  * Endpoint paths are proposals: align them with the Express routes in `controllers/` when they exist.
  * The Express API returns camelCase JSON; MongoDB snake_case is mapped on the server.
  */

@@ -56,7 +56,7 @@ export class LoginPage {
   /** Bound from ?returnUrl= by the router. */
   readonly returnUrl = input<string>();
 
-  protected readonly showDemo = environment.useMockApi;
+  protected readonly showDemo = environment.mockApis.auth;
   protected readonly demoAccounts = [
     { username: 'requester', note: 'Requester' },
     { username: 'staff', note: 'Staff, Water, clearance 3' },
