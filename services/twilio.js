@@ -6,9 +6,12 @@ const consoleMode = () => process.env.NOTIFY_MODE === 'console';
 
 class TwilioSender {
     // Created on first use, so requiring this file never fails when Twilio isn't configured (e.g. in tests)
+
     get client() {
-        if (!this._client) this._client = twilio(process.env.TWILIO_accountSid, process.env.TWILIO_authToken);
-        return this._client;
+        if (!consoleMode){
+            if (!this._client) this._client = twilio(process.env.TWILIO_accountSid, process.env.TWILIO_authToken);
+            return this._client;
+        }
     }
 
     async sendSMS(message, to) {
