@@ -4,6 +4,7 @@ import { Router, RouterLink } from '@angular/router';
 import { environment } from '../../../environments/environment';
 import { getErrorMessage } from '../../core/api/api-error';
 import { SessionService } from '../../core/auth/session.service';
+import { USERNAME_HINT, USERNAME_MAX, USERNAME_PATTERN } from '../../core/domain/username';
 
 /** Wireframe 01. Username + password only; the 2FA code is asked for once, at registration. */
 @Component({
@@ -18,7 +19,7 @@ import { SessionService } from '../../core/auth/session.service';
         }
         <div class="field">
           <label class="label" for="username">Username</label>
-          <input class="input" id="username" formControlName="username" autocomplete="username" />
+          <input class="input" id="username" formControlName="username" autocomplete="username" autocapitalize="off" spellcheck="false" [attr.maxlength]="usernameMax" />
         </div>
         <div class="field">
           <label class="label" for="password">Password</label>
@@ -70,8 +71,9 @@ export class LoginPage {
 
   protected readonly busy = signal(false);
   protected readonly error = signal('');
+  protected readonly usernameMax = USERNAME_MAX;
   protected readonly form = inject(FormBuilder).nonNullable.group({
-    username: ['', Validators.required],
+    username: ['', [Validators.required, Validators.maxLength(USERNAME_MAX), Validators.pattern(USERNAME_PATTERN)]],
     password: ['', Validators.required],
   });
 
@@ -82,7 +84,9 @@ export class LoginPage {
   protected submit(): void {
     if (this.form.invalid) {
       this.form.markAllAsTouched();
-      this.error.set('Enter your username and password.');
+      this.error.set(this.form.controls.username.hasError('pattern')
+        ? USERNAME_HINT
+        : 'Enter your username and password.');
       return;
     }
     this.busy.set(true);

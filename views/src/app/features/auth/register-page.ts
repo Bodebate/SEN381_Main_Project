@@ -3,6 +3,7 @@ import { AbstractControl, FormBuilder, ReactiveFormsModule, ValidationErrors, Va
 import { Router, RouterLink } from '@angular/router';
 import { getErrorMessage } from '../../core/api/api-error';
 import { SessionService } from '../../core/auth/session.service';
+import {USERNAME_PATTERN, USERNAME_LENGTH_HINT, USERNAME_HINT, USERNAME_MAX, USERNAME_MIN} from '../../core/domain/username';
 
 const E164 = /^\+[1-9][0-9]{7,14}$/;
 
@@ -42,7 +43,15 @@ function passwordsMatch(group: AbstractControl): ValidationErrors | null {
       </div>
       <div class="field">
         <label class="label" for="username">Username *</label>
-        <input class="input" id="username" formControlName="username" autocomplete="username" />
+        <input class="input" id="username" formControlName="username" autocomplete="username"
+               autocapitalize="off" spellcheck="false" [attr.maxlength]="usernameMax" />
+        @if (form.controls.username.touched && form.controls.username.errors; as errors) {
+          <span class="error-text">
+            @if (errors['pattern']) { {{ usernameHint }} }
+            @else if (errors['minlength'] || errors['maxlength']) { {{ usernameLengthHint }} }
+            @else { Enter a username. }
+          </span>
+        }
       </div>
       <div class="field">
         <label class="label" for="email">Email</label>
@@ -103,11 +112,14 @@ export class RegisterPage {
 
   protected readonly busy = signal(false);
   protected readonly error = signal('');
+  protected readonly usernameHint = USERNAME_HINT;
+  protected readonly usernameLengthHint = USERNAME_LENGTH_HINT;
+  protected readonly usernameMax = USERNAME_MAX;
   protected readonly form = inject(FormBuilder).nonNullable.group(
     {
       firstName: ['', Validators.required],
       lastName: ['', Validators.required],
-      username: ['', [Validators.required, Validators.minLength(3)]],
+      username: ['', [Validators.required, Validators.minLength(USERNAME_MIN), Validators.maxLength(USERNAME_MAX), Validators.pattern(USERNAME_PATTERN)]],
       email: ['', Validators.email],
       phone: ['', Validators.pattern(E164)],
       notifyVia: ['EMAIL' as 'EMAIL' | 'SMS', Validators.required],

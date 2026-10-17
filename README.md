@@ -7,21 +7,6 @@ chosen per area in the environment files.
 ## First-time setup
 
 1. Install dependencies: `npm install` in the project root, then `npm install` in `views/`.
-2. Copy `.env.example` to `.env` and fill it in (one `KEY=value` per line, no trailing `;`):
-
-| Key | What it is |
-| --- | --- |
-| `MONGODB_URI` | MongoDB connection string (Atlas or local) |
-| `ENCRYPTION_KEY`, `FIXED_IV` | Keys for encrypted user fields (names, phone numbers); ask the team for the shared values |
-| `JWT_Secret` | Long random string that signs sign-in tokens: `node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"` |
-| `PORT` | API port, default `3000` |
-| `CORS_ORIGIN` | Front-end address allowed to call the API, default `http://localhost:4200` |
-| `TWILIO_*` | Twilio account details for SMS and email |
-| `NOTIFY_MODE` | `console` prints SMS/email messages in the API terminal instead of sending them (use this in development) |
-| `SEED_ADMIN_EMAIL`, `SEED_ADMIN_PASSWORD` | The first admin account, created by `npm run seed` (password 8+ characters) |
-
-3. Create the first admin, once per database: `npm run seed`. To reset that admin's password and
-   email to the values in `.env`: `npm run seed -- --reset-password`.
 
 `.env` is never committed. Share its values privately, not in GitHub, chat screenshots or the README.
 
@@ -43,7 +28,7 @@ on demo data: CI's demo-data E2E tests rely on it.
 - **Demo data** (`npm run web`) and **test API** (`npm run api:test`, `npm run e2e:live`): password
   `demo`. Demo data has `requester`, `staff`, `staff3`, `manager`, `admin`, `pending`, `unverified`
   and `declined`; the test API has `requester`, `staff`, `manager` and `admin`.
-- **Real API** (`npm start`): `admin` with your `SEED_ADMIN_PASSWORD`. New accounts register on the
+- **Real API** (`npm start`): `admin` with `********`. New accounts register on the
   sign-up page; with `NOTIFY_MODE=console` the 6-digit code appears in the API terminal. An admin or
   manager then approves them on the approvals page.
 
@@ -63,7 +48,7 @@ health check needs a `Bearer` token:
 | `/reports` | manager, admin | dashboard, CSV export |
 | `/categories`, `/departments` | approved users | lookup lists from `config/lookups.js` |
 
-Access rules are enforced on the server (NFR-SEC-001): `middleware/authenticate.js` checks the
+Access rules are enforced on the server: `middleware/authenticate.js` checks the
 token, approval and role, and the DB layer (`models/DatabaseRead.js`, `models/DatabaseWriteUpdate.js`)
 filters what each user may see or change. The Angular guards only shape what the user sees.
 
@@ -81,7 +66,7 @@ All tests follow the **AAA pattern** (Arrange, Act, Assert), with each step mark
 | Performance/load | autocannon | `npm run perf` (root) | `perf/load-test.js` | GET /api/requests (manager queue) under 20 connections for 30 s against an isolated test API; results and limits in `perf/results/` |
 
 First-time E2E setup: `npx playwright install chromium` in `views/`. `npm run e2e:live` starts its
-own test API (port 3100) and app (port 4300), so it never touches Atlas or your running servers. The
+own test API (port 3100) and app (port 4300), so it never touches Atlas or the running servers. The
 first run downloads a MongoDB binary, which takes a minute.
 
 ## CI pipeline
@@ -135,17 +120,8 @@ views/src/environments/
   environment.e2e.ts   test API on port 3100 (npm run e2e:live)
 ```
 
-### Mock or real API
-
-`environment.mockApis` has one flag per area (`auth`, `requests`, `users`, `reports`). Switch them
-**together**: the demo data only knows who is signed in when the demo login ran, so real sign-in with
-demo requests shows "Your session has expired". Use `npm run web:live` instead of editing the flags.
-
 ## Notes
 
-- Styling is plain SCSS (`src/styles.scss`) matching the wireframes, plus Angular CDK for the account menu.
+- Styling is plain SCSS (`src/styles.scss`) matching agreed-upon wireframes, plus Angular CDK for the account menu.
 - Fonts load from Google Fonts. Production builds inline them, so `ng build` needs internet access.
-- Live status on the requester page polls every 15 s; replace with WebSocket/SSE later if needed.
-- `environment.prod.ts` is not used yet: `angular.json` has no production `fileReplacements`.
-- Some request fields (`assignedBy`, `dueSetBy`, `categorisedBy`, a group's department) are returned as
-  `null` because the database does not store them yet.
+- Live status on the requester page polls every 15 s.
