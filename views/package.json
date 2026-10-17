@@ -2,15 +2,16 @@
   "name": "civicconnect",
   "version": "0.0.0",
   "scripts": {
-    "ng": "ng",
     "start:live": "ng serve -c live --host 0.0.0.0 --poll 2000",
-    "build": "ng build --configuration production",
-    "start": "npx http-server dist/civicconnect/browser",
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
     "lint": "ng lint",
     "e2e": "playwright test",
-    "e2e:live": "playwright test -c playwright.live.config.ts"
+    "e2e:live": "playwright test -c playwright.live.config.ts",
+    "ng": "ng",
+    "start": "ng serve",
+    "build": "ng build --configuration live",
+    "serve:prod": "npx http-server dist/civicconnect/browser"
   },
   "private": true,
   "packageManager": "npm@10.9.8",

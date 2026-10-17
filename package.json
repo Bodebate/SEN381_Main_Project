@@ -11,7 +11,8 @@
     "seed": "node scripts/seed-admin.js",
     "web:live": "npm --prefix views run start:live",
     "api:test": "node scripts/start-test-api.js",
-    "perf": "node perf/load-test.js"
+    "perf": "node perf/load-test.js",
+
   },
   "jest": {
     "testEnvironment": "node",
