@@ -1,0 +1,73 @@
+<div class="page narrow">
+  <h1>Account settings</h1>
+
+  <section class="box soft stack-sm" aria-labelledby="access-h">
+    <div class="row-sm"><h2 id="access-h">Access</h2><span class="small muted">Read-only. Set by management.</span></div>
+    <dl class="kv">
+      <dt>Username</dt><dd class="mono">{{ user()?.username }}</dd>
+      <dt>Role</dt><dd>{{ roleName() }}</dd>
+      <dt>Clearance</dt><dd class="mono">{{ user()?.clearance }}</dd>
+      <dt>Department</dt><dd>{{ lookup.getDepartmentName(user()?.departmentId ?? null) }}</dd>
+    </dl>
+  </section>
+
+  <form class="box stack" aria-labelledby="personal-h" (ngSubmit)="savePersonal()">
+    <h2 id="personal-h">Personal details</h2>
+    @if (messages().personal; as m) {
+      <div class="alert" [class.success]="m.kind === 'success'" [class.error]="m.kind === 'error'" role="status">{{ m.text }}</div>
+    }
+    <div class="row">
+      <div class="field grow"><label class="label" for="fn">First name *</label><input class="input" id="fn" name="fn" [(ngModel)]="personal.firstName" required /></div>
+      <div class="field grow"><label class="label" for="ln">Last name *</label><input class="input" id="ln" name="ln" [(ngModel)]="personal.lastName" required /></div>
+    </div>
+    <div class="row"><button type="submit" class="btn primary push" [disabled]="busy() === 'personal'">Save details</button></div>
+  </form>
+
+  <form class="box stack" aria-labelledby="contact-h" (ngSubmit)="saveContact()">
+    <h2 id="contact-h">Contact and notifications</h2>
+    @if (messages().contact; as m) {
+      <div class="alert" [class.success]="m.kind === 'success'" [class.error]="m.kind === 'error'" role="status">{{ m.text }}</div>
+    }
+    <div class="row">
+      <div class="field grow"><label class="label" for="em">Email</label><input class="input" id="em" name="em" type="email" [(ngModel)]="contact.email" [disabled]="!!codeSentTo()" /></div>
+      <div class="field grow"><label class="label" for="ph">Mobile number</label><input class="input" id="ph" name="ph" [(ngModel)]="contact.phone" placeholder="+27821234567" [disabled]="!!codeSentTo()" /></div>
+    </div>
+    <fieldset class="stack-sm">
+      <legend class="label">Send request updates by *</legend>
+      <div class="row">
+        <label class="check"><input type="radio" name="nv" value="EMAIL" [(ngModel)]="contact.notifyVia" /> Email</label>
+        <label class="check"><input type="radio" name="nv" value="SMS" [(ngModel)]="contact.notifyVia" /> SMS</label>
+      </div>
+      <span class="hint">Applies to all your requests. The chosen channel needs a confirmed address.</span>
+    </fieldset>
+    @if (codeSentTo()) {
+      <div class="field">
+        <label class="label" for="code">Code sent to {{ codeSentTo() }}</label>
+        <input class="input" id="code" name="code" inputmode="numeric" maxlength="6" autocomplete="one-time-code" [(ngModel)]="contact.code" style="max-width: 200px" />
+      </div>
+    } @else {
+      <p class="small muted">Changing your email or mobile sends a 6-digit code to the new address; the change saves after you enter it.</p>
+    }
+    <div class="row">
+      @if (codeSentTo()) {
+        <button type="button" class="btn" (click)="cancelContact()">Cancel</button>
+      }
+      <button type="submit" class="btn primary push" [disabled]="busy() === 'contact'">{{ codeSentTo() ? 'Confirm code and save' : 'Save contact settings' }}</button>
+    </div>
+  </form>
+
+  <form class="box stack" aria-labelledby="pw-h" (ngSubmit)="savePassword()">
+    <h2 id="pw-h">Password</h2>
+    @if (messages().password; as m) {
+      <div class="alert" [class.success]="m.kind === 'success'" [class.error]="m.kind === 'error'" role="status">{{ m.text }}</div>
+    }
+    <div class="row">
+      <div class="field grow"><label class="label" for="cp">Current password *</label><input class="input" id="cp" name="cp" type="password" autocomplete="current-password" [(ngModel)]="password.current" /></div>
+      <div class="field grow"><label class="label" for="np">New password *</label><input class="input" id="np" name="np" type="password" autocomplete="new-password" [(ngModel)]="password.next" /></div>
+      <div class="field grow"><label class="label" for="np2">Confirm new password *</label><input class="input" id="np2" name="np2" type="password" autocomplete="new-password" [(ngModel)]="password.confirm" /></div>
+    </div>
+    <div class="row"><button type="submit" class="btn push" [disabled]="busy() === 'password'">Change password</button></div>
+  </form>
+
+  <p class="small muted">Every saved change is written to the audit log. Passwords are never logged.</p>
+</div>

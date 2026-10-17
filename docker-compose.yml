@@ -1,0 +1,40 @@
+services:
+  # 1. Database Service (MongoDB)
+  mongodb:
+    image: mongo:latest
+    container_name: mean-mongodb
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+
+  # 2. Backend Service (Runs npm start)
+  backend:
+    build: .
+    container_name: mean-backend
+    command: npm start
+    ports:
+      - "3000:3000"
+    environment:
+      - MONGO_URI=mongodb://mongodb:27017/SEN381_DB
+    depends_on:
+      - mongodb
+
+  # 3. Frontend Service (Runs npm run start:live --prefix views)
+  frontend:
+    build: .
+    container_name: mean-frontend
+    command: npm run start:live --prefix views
+    ports:
+      - "4200:4200"
+    environment:
+      - NODE_OPTIONS=--max-old-space-size=4096
+    volumes:
+      - .:/usr/src/app
+      - /usr/src/app/node_modules
+      - /usr/src/app/views/node_modules
+    depends_on:
+      - backend
+
+volumes:
+  mongo-data:

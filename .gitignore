@@ -1,0 +1,26 @@
+# Default ignored files
+/shelf/
+/.idea/workspace.xml
+# Editor-based HTTP Client requests
+/httpRequests/
+# Ignored default folder with query files
+/queries/
+# Datasource local storage ignored files
+/dataSources/
+/dataSources.local.xml
+/node-modules
+/.idea
+/.env
+/controllers/twillioAccount.txt
+# Node dependencies (root and views/)
+node_modules/
+# Angular build cache and output
+views/.angular/
+views/dist/
+/node_modules/
+views/playwright-report/
+views/test-results/
+views/playwright-report-live/
+views/test-results-live/
+.DS_Store
+node_modules/.package-lock.json

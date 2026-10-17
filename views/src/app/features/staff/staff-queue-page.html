@@ -1,0 +1,143 @@
+<div class="page">
+  <div class="row">
+    <h1>{{ heading() }}</h1>
+    <span class="muted small push">{{ scopeNote() }}</span>
+  </div>
+
+  <form class="row-sm" role="search" (ngSubmit)="page.set(0)">
+    <label class="sr-only" for="q">Search keyword or request ID</label>
+    <input class="input grow" id="q" name="q" placeholder="Search keyword or request ID (REQ-…)" [ngModel]="search()" (ngModelChange)="apply('search', $event)" />
+  </form>
+
+  <div class="box soft grid-auto" aria-label="Filters">
+    <div class="field">
+      <label class="label" for="f-cat">Category</label>
+      <select class="input" id="f-cat" [ngModel]="category()" (ngModelChange)="apply('category', $event)">
+        <option value="ALL">All</option>
+        <option value="NONE">Uncategorised (triage)</option>
+        @for (c of lookup.categories(); track c.id) {
+          <option [value]="c.id">{{ c.name }}</option>
+        }
+      </select>
+    </div>
+    <div class="field">
+      <label class="label" for="f-status">Status</label>
+      <select class="input" id="f-status" [ngModel]="status()" (ngModelChange)="apply('status', $event)">
+        <option value="OPEN">Open (not resolved/closed)</option>
+        <option value="ALL">All</option>
+        @for (s of statusOptions; track s.value) {
+          <option [value]="s.value">{{ s.label }}</option>
+        }
+      </select>
+    </div>
+    <div class="field">
+      <label class="label" for="f-pri">Priority</label>
+      <select class="input" id="f-pri" [ngModel]="priority()" (ngModelChange)="apply('priority', $event)">
+        <option value="ALL">Any</option>
+        <option value="HIGH">High</option>
+        <option value="MEDIUM">Medium</option>
+        <option value="LOW">Low</option>
+      </select>
+    </div>
+    <div class="field">
+      <label class="label" for="f-from">Submitted from</label>
+      <input class="input" id="f-from" type="date" [ngModel]="from()" (ngModelChange)="apply('from', $event)" />
+    </div>
+    <div class="field">
+      <label class="label" for="f-to">to</label>
+      <input class="input" id="f-to" type="date" [ngModel]="to()" (ngModelChange)="apply('to', $event)" />
+    </div>
+    <div class="field">
+      <label class="label" for="f-sort">Sort by</label>
+      <select class="input" id="f-sort" [ngModel]="sort()" (ngModelChange)="sort.set($event)">
+        <option value="newest">Submitted · newest</option>
+        <option value="oldest">Submitted · oldest</option>
+        <option value="due">Due date · soonest</option>
+        <option value="priority">Priority · highest</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="row-sm">
+    @if (activeFilters().length) {
+      <span class="muted">Active filters:</span>
+      @for (f of activeFilters(); track f.key) {
+        <button type="button" class="chip chip-btn" (click)="clearFilter(f.key)" [attr.aria-label]="'Remove filter ' + f.label">{{ f.label }} ✕</button>
+      }
+      <button type="button" class="link-btn" (click)="clearAll()">Clear all</button>
+    }
+    <div class="row-sm push">
+      @if (grouping()) {
+        <label class="sr-only" for="group-title">Group title</label>
+        <input class="input" id="group-title" [(ngModel)]="groupTitle" placeholder="Group title, e.g. Park St sewer line" style="width: 260px" />
+        <button type="button" class="btn small primary" (click)="postGroup()">Create group</button>
+        <button type="button" class="btn small" (click)="grouping.set(false)">Cancel</button>
+      } @else {
+        <button type="button" class="btn small" [disabled]="selected().size < 2" (click)="grouping.set(true)">Group selected ({{ selected().size }})</button>
+      }
+    </div>
+  </div>
+
+  @if (notice()) {
+    <div class="alert success" role="status">{{ notice() }}</div>
+  }
+  @if (error()) {
+    <div class="alert error" role="alert">{{ error() }}</div>
+  } @else if (loading()) {
+    <p class="muted" role="status">Loading requests…</p>
+  } @else if (filtered().length === 0) {
+    <app-empty-state title="No requests match these filters.">
+      <button type="button" class="btn small" (click)="clearAll()">Clear filters</button>
+    </app-empty-state>
+  } @else {
+    <div class="box flush scroll-x">
+      <table class="data">
+        <caption class="sr-only">{{ heading() }}</caption>
+        <thead>
+          <tr>
+            <th scope="col"><input type="checkbox" aria-label="Select all on this page" (change)="toggleAll($any($event.target).checked)" /></th>
+            <th scope="col">ID</th><th scope="col">Title</th><th scope="col">Category</th><th scope="col">Priority</th><th scope="col">Status</th>
+            <th scope="col">Submitted</th><th scope="col">Owner</th><th scope="col">Due</th><th scope="col"><span class="sr-only">Actions</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (r of pageItems(); track r.id) {
+            <tr [class.selected]="selected().has(r.id)">
+              <td><input type="checkbox" [checked]="selected().has(r.id)" (change)="toggle(r.id, $any($event.target).checked)" [attr.aria-label]="'Select ' + r.trackingId" /></td>
+              <td class="mono">{{ r.trackingId }}</td>
+              <td class="wrap">{{ r.title }}</td>
+              <td [class.muted]="!r.categoryId">{{ lookup.getCategoryName(r.categoryId) }}</td>
+              <td>{{ r.priority ? priorityLabel[r.priority] : '—' }}</td>
+              <td><app-status-chip [status]="r.status" /></td>
+              <td>{{ r.createdAt | date: 'd MMM' }}</td>
+              <td [class.muted]="!r.assignedTo">{{ r.assignedTo ? lookup.getUserName(r.assignedTo) : 'Unassigned' }}</td>
+              <td>
+                @if (isOverdue(r)) {
+                  <span class="badge-overdue">OVERDUE</span>
+                } @else if (r.dueAt) {
+                  {{ r.dueAt | date: 'd MMM' }}
+                } @else {
+                  <span class="muted">Not set</span>
+                }
+              </td>
+              <td>
+                @if (r.status === 'SUBMITTED') {
+                  <a class="btn small primary" [routerLink]="['/staff/requests', r.id]">Triage</a>
+                } @else {
+                  <a [routerLink]="['/staff/requests', r.id]">Open<span class="sr-only"> {{ r.trackingId }}</span></a>
+                }
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    <div class="row">
+      <span class="muted">{{ page() * 25 + 1 }}–{{ rangeEnd() }} of {{ filtered().length }} · 25 per page</span>
+      <div class="row-sm push">
+        <button type="button" class="btn small" [disabled]="page() === 0" (click)="page.set(page() - 1)">‹ Prev</button>
+        <button type="button" class="btn small" [disabled]="rangeEnd() >= filtered().length" (click)="page.set(page() + 1)">Next ›</button>
+      </div>
+    </div>
+  }
+</div>
