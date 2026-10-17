@@ -1,0 +1,35 @@
+{
+  "date": "2026-10-16T14:02:18.588Z",
+  "operation": "GET /api/requests (manager queue)",
+  "environment": {
+    "node": "v24.16.0",
+    "os": "Darwin 25.6.0 (arm64)",
+    "cpu": "Apple M5 Pro x15",
+    "memoryGb": 26,
+    "database": "mongodb-memory-server on the same machine (no network latency to Atlas)"
+  },
+  "workload": {
+    "connections": 20,
+    "durationSeconds": 30,
+    "requestsInDatabase": 200
+  },
+  "latencyMs": {
+    "average": 134.24,
+    "p50": 133,
+    "p90": 160,
+    "p97_5": 178,
+    "p99": 197,
+    "max": 459
+  },
+  "throughput": {
+    "requestsPerSecondAvg": 148.2,
+    "totalRequests": 4446
+  },
+  "failures": {
+    "non2xx": 0,
+    "errors": 0,
+    "timeouts": 0
+  },
+  "target": "p97.5 <= 500 ms and no failed requests",
+  "verdict": "PASS"
+}

@@ -78,6 +78,7 @@ All tests follow the **AAA pattern** (Arrange, Act, Assert), with each step mark
 | Front-end unit | Vitest via `ng test` | `npx ng test --watch=false` (views) | `views/src/**/*.spec.ts` | Status rules, visibility, approval rules, route guards |
 | E2E, demo data | Playwright | `npm run e2e` (views) | `views/e2e/*.spec.ts` | E2E-01 submit and track a request; E2E-02 requester blocked from staff pages; E2E-03 signed-out visitor sent to sign in |
 | E2E, real API | Playwright | `npm run e2e:live` (views) | same specs | The same journeys against the real Express API and an in-memory MongoDB |
+| Performance/load | autocannon | `npm run perf` (root) | `perf/load-test.js` | GET /api/requests (manager queue) under 20 connections for 30 s against an isolated test API; results and limits in `perf/results/` |
 
 First-time E2E setup: `npx playwright install chromium` in `views/`. `npm run e2e:live` starts its
 own test API (port 3100) and app (port 4300), so it never touches Atlas or your running servers. The
