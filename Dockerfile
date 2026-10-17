@@ -1,24 +1,25 @@
-# Use a stable Node.js runtime environment matching Angular's prerequisites
+# Use a stable Node.js runtime environment
 FROM node:22-alpine
 
 # Set the working directory inside the container
 WORKDIR /usr/src/app
 
-# Copy root configurations first to leverage layer caching
+# Copy root and views configurations
 COPY package*.json ./
-
-# Copy views configuration to allow unified native installation
 COPY views/package*.json ./views/
 
-# Clean install to fetch the Linux environment binaries natively inside the container
+# Install dependencies
 RUN npm install
 RUN npm install --prefix views
 
-# Copy the entire source code into the container
+# Copy source code
 COPY . .
 
-# Expose the ports used by your application (3000 for API, 4200 for Frontend)
-EXPOSE 3000 4200
+# Build the Angular frontend during the Docker image build phase
+RUN npm run web:build
 
-# Execute the Angular server directly out of the views context with performance hooks
-CMD ["npm", "run", "start:live", "--prefix", "views", "--", "--host", "0.0.0.0", "--poll", "2000"]
+# Expose Render's expected port or default backends if needed
+EXPOSE 3000 10000
+
+# Use a production-ready static server or your node backend to start instantly
+CMD ["node", "server.js"]
