@@ -18,9 +18,9 @@ function createApp() {
     app.use('/api', require('./routes/lookups'));      // /api/categories, /api/departments
 
     app.use('/api', (req, res) => res.status(404).json({ message: 'Not found' }));
-    app.use(express.static(path.join(__dirname, 'views', 'dist', 'civicconnect')));
+    app.use(express.static(path.join(__dirname, 'views', 'dist', 'civicconnect','browser')));
     app.get(/(.*)/, (req, res) => {
-        res.sendFile(path.join(__dirname, 'views', 'dist', 'civicconnect', 'index.html'));
+        res.sendFile(path.join(__dirname, 'views', 'dist', 'civicconnect','browser', 'index.html'));
     });
 
 
