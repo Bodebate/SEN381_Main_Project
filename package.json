@@ -1,0 +1,53 @@
+{
+  "name": "sen381_main_project",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "jest",
+    "web": "npm --prefix views start",
+    "web:build": "npm --prefix views run build",
+    "start": "node server.js",
+    "seed": "node scripts/seed-admin.js",
+    "web:live": "npm --prefix views run start:live",
+    "api:test": "node scripts/start-test-api.js",
+    "perf": "node perf/load-test.js"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "roots": [
+      "<rootDir>/tests"
+    ],
+    "testMatch": [
+      "**/*.test.js"
+    ]
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Bodebate/SEN381_Main_Project.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/Bodebate/SEN381_Main_Project/issues"
+  },
+  "homepage": "https://github.com/Bodebate/SEN381_Main_Project#readme",
+  "dependencies": {
+    "bcrypt": "^6.0.0",
+    "cors": "^2.8.6",
+    "dotenv": "^18.0.7",
+    "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.3",
+    "mongoose": "^9.11.2",
+    "multer": "^2.4.0",
+    "twilio": "^6.1.2"
+  },
+  "devDependencies": {
+    "autocannon": "^8.0.0",
+    "jest": "^30.5.2",
+    "mongodb-memory-server": "^11.3.0",
+    "supertest": "^7.3.1"
+  }
+}
