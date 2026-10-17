@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 const { Schema } = mongoose;
 
 const userSchema = new Schema({
-    username: { type: String, required: true, unique: true},
+    username: { type: String, required: true, unique: true, minLength: 3, maxLength: 15, match: /^[A-Za-z0-9._-]+$/ },
     password_hash: { type: String, required: true },
     first_name: { type: String, required: true },
     last_name: { type: String, required: true },

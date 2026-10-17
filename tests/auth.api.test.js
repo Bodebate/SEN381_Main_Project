@@ -45,7 +45,7 @@ describe('POST /api/auth/login', () => {
 });
 
 describe('POST /api/auth/register', () => {
-    const body = { firstName: 'A', lastName: 'B', username: 'ab', email: 'a@b.com', notifyVia: 'EMAIL', password: 'longenough' };
+    const body = { firstName: 'A', lastName: 'B', username: 'abc', email: 'a@b.com', notifyVia: 'EMAIL', password: 'longenough' };
 
     test('returns 201 with the new userId', async () => {
         // Arrange

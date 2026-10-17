@@ -42,12 +42,16 @@ exports.me = async (req, res, next) => {
 // POST /auth/logout (the client drops the token)
 exports.logout = (req, res) => res.status(204).end();
 
+const USERNAME_RULE = /^[A-Za-z0-9._-]{3,15}$/;
+
 // POST /auth/register
 exports.register = async (req, res, next) => {
     try {
         const { firstName, lastName, username, email, phone, notifyVia, password } = req.body || {};
         if (!firstName || !lastName || !username)
             return res.status(400).json({ message: 'Name and username are required' });
+        if (!USERNAME_RULE.test(username))
+            return res.status(400).json({ message: 'Username must be 3–15 letters, numbers, ".", "_" or "-"' });
         if (!password || password.length < 8)
             return res.status(400).json({ message: 'Password must be at least 8 characters' });
         if (notifyVia === 'SMS' ? !phone : !email)
