@@ -1,9 +1,9 @@
 const { users, bearer, signInAs } = require('./helpers');
-jest.mock('../services/twilio', () => ({ sendSMS: jest.fn().mockResolvedValue({}), sendEmail: jest.fn().mockResolvedValue() }));
+jest.mock('../services/notify', () => ({ sendSMS: jest.fn().mockResolvedValue({}), sendEmail: jest.fn().mockResolvedValue() }));
 const request = require('supertest');
 const DBRead = require('../models/DatabaseRead');
 const DBUpdateWrite = require('../models/DatabaseWriteUpdate');
-const sender = require('../services/twilio');
+const sender = require('../services/notify');
 const { createApp } = require('../app');
 
 const app = createApp();

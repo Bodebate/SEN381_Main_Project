@@ -1,5 +1,5 @@
 const { users, bearer, signInAs } = require('./helpers');
-jest.mock('../services/twilio', () => ({
+jest.mock('../services/notify', () => ({
     sendSMS: jest.fn().mockResolvedValue({}),
     sendEmail: jest.fn().mockResolvedValue(undefined),
     sendWhatsApp: jest.fn().mockResolvedValue({}),
