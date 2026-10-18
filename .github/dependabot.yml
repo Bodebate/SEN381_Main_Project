@@ -6,6 +6,18 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+    groups:
+      angular:                                  # one PR for all Angular packages (they must share a version)
+        patterns: ["@angular/*", "@angular-devkit/*"]
+    ignore:
+      - dependency-name: typescript             # wait until Angular supports TypeScript 7
+        update-types: ["version-update:semver-major"]
+  - package-ecosystem: npm                      # the Express back end
+    directory: /
+    target-branch: implemenation/baseline
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
   - package-ecosystem: github-actions
     directory: /
     target-branch: implemenation/baseline
