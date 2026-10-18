@@ -9,6 +9,7 @@ const PENDING_KEY = 'cc.pendingVerification';
 export interface PendingVerification {
   userId: string;
   sentTo: string;
+  codeSent?: boolean;
 }
 
 function readStorage(key: string): string | null {

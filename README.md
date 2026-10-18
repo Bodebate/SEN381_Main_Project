@@ -10,6 +10,35 @@ chosen per area in the environment files.
 
 `.env` is never committed. Share its values privately, not in GitHub, chat screenshots or the README.
 
+## Notifications (ntfy)
+
+Sign-up codes, phone-change codes and request updates are sent through [ntfy](https://ntfy.sh)
+(`services/notify.js`). ntfy does not send real SMS: an "SMS" arrives as a push notification in the
+ntfy phone app. Email is forwarded by ntfy as plain text.
+
+**`.env` settings**
+
+| Key | Value |
+| --- | --- |
+| `NOTIFY_MODE` | `console` prints every message in the API terminal (no sending); `live` sends through ntfy |
+| `NTFY_SERVER` | `https://ntfy.sh` |
+| `NTFY_TOPIC_PREFIX` | the team's shared prefix; must be identical on every machine |
+| `NTFY_TOKEN` | ntfy.sh access token; only needed for email (shared privately) |
+
+Restart the API (`npm start`) after changing `.env`.
+
+**Receiving "SMS" on a phone**
+
+1. Install the **ntfy** app and allow its notifications.
+2. Tap **+** and subscribe to `<NTFY_TOPIC_PREFIX>-<cell number, digits only>`,
+   e.g. `<prefix>-27821234567` for +27 82 123 4567.
+3. Register in CivicConnect with that number (`+27…` format) and choose **SMS**.
+
+**Receiving email:** ntfy.sh only emails addresses verified in the account that owns `NTFY_TOKEN`.
+Add and verify the address in that ntfy account first, otherwise choose SMS.
+
+Tests never send messages: the Jest suites mock `services/notify.js`.
+
 ## Run it
 
 | Goal | Commands (project root) |
@@ -99,7 +128,7 @@ models/
   DatabaseRead.js    reads with access filtering
   DatabaseWriteUpdate.js  writes, status rules, audit log
   utils/Mappers.js   snake_case DB documents ↔ camelCase Angular models
-services/            twilio.js (SMS, WhatsApp, email; NOTIFY_MODE=console for dev), mask.js
+services/            notify.js (notifications via ntfy: SMS as push, email; NOTIFY_MODE=console for dev), mask.js
 scripts/             seed-admin.js (npm run seed), start-test-api.js (npm run api:test, live E2E)
 tests/               Jest + Supertest tests and shared helpers
 views/src/app/
