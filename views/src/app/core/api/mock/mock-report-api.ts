@@ -15,6 +15,17 @@ function csvCell(value: unknown): string {
   return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
 }
 
+function dailyCounts(fromIso: string, toIso: string, received: string[], resolved: string[]) {
+  const rows: { date: string; received: number; resolved: number }[] = [];
+  for (let d = new Date(`${fromIso.slice(0, 10)}T00:00:00Z`); d.toISOString() <= toIso; d = new Date(d.getTime() + 86_400_000)) {
+    rows.push({ date: d.toISOString().slice(0, 10), received: 0, resolved: 0 });
+  }
+  const byDay = new Map(rows.map((r) => [r.date, r]));
+  received.forEach((iso) => { const row = byDay.get(iso.slice(0, 10)); if (row) row.received++; });
+  resolved.forEach((iso) => { const row = byDay.get(iso.slice(0, 10)); if (row) row.resolved++; });
+  return rows;
+}
+
 @Injectable()
 export class MockReportApi extends ReportApi {
   private readonly db = inject(MockDb);
@@ -65,6 +76,7 @@ export class MockReportApi extends ReportApi {
           ...d,
           overdue: open.filter((r) => nameOfDepartment(r.departmentId) === d.label && isOverdue(r)).length,
         })),
+        daily: dailyCounts(fromIso, toIso, received.map((r) => r.createdAt), resolved.map((r) => r.resolvedAt!)),
         staff,
       };
     });
