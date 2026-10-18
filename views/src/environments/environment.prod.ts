@@ -2,5 +2,5 @@
 export const environment = {
   production: true,
   mockApis: { auth: true, requests: true, users: true, reports: true },
-  apiBaseUrl: '/api',
+  apiBaseUrl: 'https://sen381-main-project-back-end.onrender.com/api',
 };
