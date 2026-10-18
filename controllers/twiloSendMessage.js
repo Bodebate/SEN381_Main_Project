@@ -25,11 +25,14 @@ class TwiloSendMessage {
 
     // FIXED: Added async/await, returned response, and added verification status checks
     async sendEmail(emailaddress, subject, htmlBody) {
-        const response = await fetch("https://comms.twilio.com/v1/Emails", {
+        // 1. Create a clean plain-text fallback string by stripping HTML tags
+        const textFallback = htmlBody.replace(/<[^>]*>/g, ' ');
+
+        const response = await fetch("https://twilio.com", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
-                Authorization: "Basic " + Buffer.from(
+                "Authorization": "Basic " + Buffer.from(
                     process.env.TWILIO_accountSid + ":" + process.env.TWILIO_authToken
                 ).toString("base64"),
             },
@@ -39,15 +42,27 @@ class TwiloSendMessage {
                 content: {
                     subject: subject,
                     html: htmlBody,
+                    text: textFallback // Add plain text content to satisfy validation
                 }
             })
         });
 
         if (!response.ok) {
-            throw new Error(`Email gateway rejected request with status (${response.status})`);
+            let errorDetails = "";
+            try {
+                // Catch the specific validation error body sent back by your server
+                errorDetails = await response.text();
+            } catch (e) {
+                errorDetails = "Could not parse response body.";
+            }
+
+            console.error(`Email 422 Validation Error Details: ${errorDetails}`);
+            throw new Error(`Email send failed (${response.status}): ${errorDetails}`);
         }
+
         return response;
     }
+
 
     // FIXED: Changed 'content' to 'body' parameter and added safety check for 'whatsapp:' prefix
     async sendWhatsApp(message, whatsappNumber) {
