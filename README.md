@@ -39,18 +39,18 @@ Add and verify the address in that ntfy account first, otherwise choose SMS.
 
 Tests never send messages: the Jest suites mock `services/notify.js`.
 
-## Run it
+## Production & Live Deployment
 
-| Goal | Commands (project root) |
+* **Live Frontend Link**: `https://sen381-main-project-1.onrender.com/api`
+* **Backend Service**: Deployed on Render via Docker using `server.js` and `app.js`.
+* **Frontend Service**: Deployed as a separate Render Static Site using the Angular application builder output (`views/dist/civicconnect/browser`).
+
+| Goal | Commands / Target |
 | --- | --- |
 | Front end on demo data only | `npm run web` → http://localhost:4200 |
-| Front end on the real API | `npm start` (API on http://localhost:3000/api), then in a second terminal `npm run web:live` |
-| Throwaway API with demo accounts | `npm run api:test`: API on port 3100 with an in-memory database (data is lost on stop) |
-| Production build | `npm run web:build` → `views/dist/` |
-
-`npm run web:live` uses the `live` Angular configuration (`environment.live.ts`, all areas on the
-real API), so nobody needs to edit `environment.ts` to test against the API. Keep `environment.ts`
-on demo data: CI's demo-data E2E tests rely on it.
+| Local development against real API | `npm start` (API on port 3000), then `npm run web:live` (Frontend pointing to local or live API) |
+| Throwaway API with demo accounts | `npm run api:test`: API on port 3100 with an in-memory database |
+| Production build | `npm run web:build` → `views/dist/civicconnect/browser` |
 
 ### Accounts
 
