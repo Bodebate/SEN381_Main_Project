@@ -1,6 +1,6 @@
 const DBRead = require('../models/DatabaseRead');
 const DBUpdateWrite = require('../models/DatabaseWriteUpdate');
-const sender = require('../services/twilio');
+const sender = require('../services/notify');
 
 const read = new DBRead();
 const write = new DBUpdateWrite();

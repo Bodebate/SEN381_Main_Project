@@ -2,7 +2,7 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const DBRead = require('../models/DatabaseRead');
 const DBUpdateWrite = require('../models/DatabaseWriteUpdate');
-const sender = require('../services/twilio');
+const sender = require('../services/notify');
 const mask = require('../services/mask');
 
 const read = new DBRead();
@@ -60,7 +60,10 @@ exports.register = async (req, res, next) => {
             firstName, lastName, username, email: email || undefined, phone: phone || undefined,
             notificationPreference: notifyVia === 'SMS' ? 'SMS' : 'EMAIL', password,
         }, null);
-        res.status(201).json({ userId: user.id, sentTo: await sendCode(user) });
+        let sentTo = null;
+        try { sentTo = await sendCode(user); }
+        catch (err) { console.error('Sign-up code not sent:', err.message); }
+        res.status(201).json({ userId: user.id, sentTo, codeSent: sentTo !== null });
     } catch (err) { next(err); }
 };
 
@@ -79,7 +82,11 @@ exports.resendCode = async (req, res, next) => {
         const user = await read.findUserById(req.body?.userId);
         if (!user) return res.status(404).json({ message: 'User not found' });
         if (user.verified) return res.status(400).json({ message: 'Already verified' });
-        res.json({ sentTo: await sendCode(user) });
+        try { res.json({ sentTo: await sendCode(user) }); }
+        catch (err) {
+            console.error('Code resend failed:', err.message);
+            res.status(502).json({ message: "We couldn't send the code right now. Please try again shortly." });
+        }
     } catch (err) { next(err); }
 };
 

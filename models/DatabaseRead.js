@@ -404,6 +404,16 @@ class DBRead {
         const resolved = all.filter(r => inPeriod(resolvedAt(r)));
         const open = all.filter(isOpen);
 
+        // One row per day in the period (UTC dates), for the received-vs-resolved line chart
+        const dayKey = d => new Date(d).toISOString().slice(0, 10);
+        const daily = [];
+        for (let d = new Date(dayKey(start)); d <= end; d = new Date(d.getTime() + 864e5)) {
+            daily.push({ date: dayKey(d), received: 0, resolved: 0 });
+        }
+        const byDay = new Map(daily.map(row => [row.date, row]));
+        received.forEach(r => { const row = byDay.get(dayKey(r.createdAt)); if (row) row.received++; });
+        resolved.forEach(r => { const row = byDay.get(dayKey(resolvedAt(r))); if (row) row.resolved++; });
+
         const staffUsers = await constUser.find({ role: 'STAFF', ...(departmentId ? { department: departmentId } : {}) }).lean();
         const staff = staffUsers.map(u => {
             const mine = all.filter(r => String(r.assigned_to) === String(u._id));
@@ -432,6 +442,7 @@ class DBRead {
                 ...d,
                 overdue: open.filter(r => depName(deptOf(r)) === d.label && isOverdue(r)).length,
             })),
+            daily,
             staff,
         };
     }

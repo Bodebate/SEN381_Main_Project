@@ -16,7 +16,11 @@ import { SessionService } from '../../core/auth/session.service';
     <form class="box stack card" [formGroup]="form" (ngSubmit)="submit()" novalidate>
       <span class="eyebrow">Step 2 of 2 · Verify your account</span>
       <h1>Enter your security code</h1>
+      @if (codeFailed()) {
+        <div class="alert error" role="alert">We couldn't send your code. Use "Resend code" below.</div>
+      } @else {
       <p class="muted">We sent a 6-digit code to <strong class="ink">{{ sentTo() }}</strong>. You only need to do this once.</p>
+      }
       @if (error()) {
         <div class="alert error" role="alert">{{ error() }}</div>
       }
@@ -55,6 +59,7 @@ export class VerifyPage {
   protected readonly notice = signal('');
   protected readonly cooldown = signal(30);
   protected readonly sentTo = computed(() => this.session.pendingVerification()?.sentTo ?? 'your email or mobile number');
+  protected readonly codeFailed = computed(() => this.session.pendingVerification()?.codeSent === false);
   protected readonly form = inject(FormBuilder).nonNullable.group({
     code: ['', [Validators.required, Validators.pattern(/^\d{6}$/)]],
   });

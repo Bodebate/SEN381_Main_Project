@@ -10,11 +10,12 @@ import { daysBetween, isOverdue } from '../../core/domain/request-rules';
 import { DashboardData, ServiceRequest } from '../../core/models';
 import { BarList } from '../../shared/bar-list';
 import { KpiTile } from '../../shared/kpi-tile';
+import { LineChart } from '../../shared/line-chart';
 
 /** Wireframe 07 (FR-MNG-001): service activity summary. Updates on refresh. */
 @Component({
   selector: 'app-dashboard-page',
-  imports: [DatePipe, FormsModule, RouterLink, KpiTile, BarList],
+  imports: [DatePipe, FormsModule, RouterLink, KpiTile, BarList, LineChart],
   template: `
     <div class="page">
       <div class="row">
@@ -54,7 +55,7 @@ import { KpiTile } from '../../shared/kpi-tile';
           <section class="box stack-sm"><h2>Requests by status</h2><app-bar-list [rows]="d.byStatus" /></section>
           <section class="box stack-sm">
             <h2>Received vs resolved over time</h2>
-            <div class="placeholder">Line chart placeholder. Add a chart library once the real API supplies daily counts.</div>
+            <app-line-chart [days]="d.daily" />
           </section>
           <section class="box stack-sm"><h2>Open backlog by category</h2><app-bar-list [rows]="d.byCategory" /></section>
           <section class="box stack-sm"><h2>Open backlog by department</h2><app-bar-list [rows]="d.byDepartment" /></section>

@@ -25,6 +25,7 @@ export interface DashboardData {
   byStatus: { label: string; count: number }[];
   byCategory: { label: string; count: number }[];
   byDepartment: { label: string; count: number; overdue: number }[];
+  daily: { date: string; received: number; resolved: number }[];
   staff: { name: string; department: string; openAssigned: number; resolved: number; avgResolveDays: number | null; overdue: number }[];
 }
 

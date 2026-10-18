@@ -1,7 +1,7 @@
 const bcrypt = require('bcrypt');
 const DBRead = require('../models/DatabaseRead');
 const DBUpdateWrite = require('../models/DatabaseWriteUpdate');
-const sender = require('../services/twilio');
+const sender = require('../services/notify');
 const mask = require('../services/mask');
 
 const read = new DBRead();
