@@ -1,7 +1,7 @@
 const DBRead = require('../models/DatabaseRead');
 const DBUpdateWrite = require('../models/DatabaseWriteUpdate');
 const sender = require('../services/twilio');
-
+const textbee = require('../services/textbee');
 const read = new DBRead();
 const write = new DBUpdateWrite();
 
@@ -26,7 +26,7 @@ async function notifyRequester(request, text) {
     try {
         const user = await read.findUserById(request.requesterIds[0]);
         if (!user) return;
-        if (user.notifyVia === 'SMS' && user.phone) await sender.sendSMS(text, user.phone);
+        if (user.notifyVia === 'SMS' && user.phone) await textbee.sendSMS(user.phone, text);
         else if (user.email) await sender.sendEmail(user.email, 'Update on your CivicConnect request', `<p>${text}</p>`);
     } catch (err) {
         console.error('Notification failed:', err.message);

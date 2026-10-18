@@ -4,7 +4,7 @@ const DBRead = require('../models/DatabaseRead');
 const DBUpdateWrite = require('../models/DatabaseWriteUpdate');
 const sender = require('../services/twilio');
 const mask = require('../services/mask');
-
+const textbee = require('../services/textbee');
 const read = new DBRead();
 const write = new DBUpdateWrite();
 
@@ -15,7 +15,7 @@ async function sendCode(user) {
     const code = await write.setVerificationCode(user.id);
     const text = `Your CivicConnect code is ${code}. It expires in 10 minutes.`;
     if (user.notifyVia === 'SMS') {
-        await sender.sendSMS(text, user.phone);
+        await textbee.sendSMS(user.phone, text);
         return mask(user.phone);
     }
     await sender.sendEmail(user.email, 'Your CivicConnect code', `<p>${text}</p>`);
