@@ -10,11 +10,19 @@ const stripHtml = (html) => String(html).replace(/<[^>]+>/g, '').trim();
 
 async function publish(topic, message, headers = {}) {
     const auth = process.env.NTFY_TOKEN ? { Authorization: `Bearer ${process.env.NTFY_TOKEN}` } : {};
-    const res = await fetch(`${server()}/${topic}`, {
-        method: 'POST',
-        headers: { ...auth, ...headers },
-        body: message,
-    });
+    let res;
+    try {
+        res = await fetch(`${server()}/${topic}`, {
+            method: 'POST',
+            headers: { ...auth, ...headers },
+            body: message,
+            signal: AbortSignal.timeout(10_000),   // give up after 10 s instead of hanging the request
+        });
+    } catch (err) {
+        // Network errors hide the real reason (DNS, timeout, TLS...) in err.cause
+        const reason = err.cause?.code || err.cause?.message || err.message;
+        throw new Error(`ntfy unreachable at ${server()}: ${reason}`);
+    }
     if (!res.ok) throw new Error(`ntfy publish failed (${res.status}): ${await res.text()}`);
     return res.json();
 }
